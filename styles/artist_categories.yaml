@@ -1,0 +1,626 @@
+# 작가태그 버전 분류
+# 카테고리: general(범용), mature(성숙), vulgar(천박), semi_realistic(반실사), realistic(실사)
+# 하나의 버전이 여러 카테고리에 포함될 수 있음
+
+categories:
+  general:
+    description: "모에~청순, 귀여움~예쁨, 다용도"
+    versions: ["v00", "v01", "v02", "v04", "v05", "v06", "v07", "v08", "v12", "v15", "v17", "v18", "v19", "v20", "v36", "v38", "v42", "v43", "v44", "v45", "v46", "v47", "v48", "v49", "v52", "v53", "v55", "v56", "v57", "v58", "v59", "v60", "v61", "v62", "v63", "v64", "v65", "v66", "v67", "v68", "v69", "v70", "v72", "v73", "v75", "v76", "v83", "v84", "v86", "v87", "v89", "v90", "v91", "v92", "v98", "v99", "v101", "v102", "v103", "v105", "v109", "v110", "v111", "v112", "v113", "v114", "v115", "v116", "v117", "v118", "v119", "v121", "v125", "v128", "v130", "v131"]
+    
+  mature:
+    description: "글래머, 오네쇼타용, 누나/언니"
+    versions: ["v37", "v39", "v40", "v41", "v50", "v54", "v108", "v127"]
+    
+  vulgar:
+    description: "닭장, 하드코어, 과장된 체형"
+    versions: ["v104", "v106"]
+    
+  semi_realistic:
+    description: "3D 터치, 세미리얼, 일러스트+실사 믹스"
+    versions: ["v03", "v09", "v10", "v11", "v13", "v14", "v16", "v21", "v50", "v51", "v71", "v77", "v78", "v79", "v81", "v82", "v85", "v88", "v93", "v94", "v95", "v96", "v97", "v100", "v107", "v120", "v122", "v123", "v126", "v129", "v132", "v133"]
+    
+  realistic:
+    description: "포토리얼리스틱, 완전 실사풍"
+    versions: ["v74", "v80", "v124"]
+
+# 버전별 상세 정보
+version_details:
+  v00:
+    category: ["general"]
+    main_artists: []
+    notes: "기본 템플릿, 작가태그 없음"
+    
+  v01: # [TESTED] 귀여운 느낌, 모에 느낌의 그림체. 눈동자가 거의 단색으로 나오며 약간 좌우로 길게 나옴. 카툰풍
+    category: ["general"]
+    main_artists: ["tsunako", "baocaizi", "chariko", "karyln", "kunaboto"]
+    notes: "모에 + 일러스트 믹스"
+    
+  v02: # [ISSUE] 망가짐 
+    category: ["general"]
+    main_artists: ["baocaizi", "karyln", "kazutake hazano"]
+    notes: "귀여운/모에 스타일"
+    
+  v03: # [ISSUE] 망가짐 
+    category: ["semi_realistic"]
+    main_artists: ["kim eb", "quasarcake", "cutesexyrobutts", "henriiku (ahemaru)", "qiandaiyiyu"]
+    notes: "3D 태그 포함, 세미리얼"
+    
+  v04: # [TESTED] 눈동자가 크고 밝은 분위기에 어울림. 색채가 밝고 강함. 일러스트풍 
+    category: ["general"]
+    main_artists: ["yoneyama mai", "roke", "grandia", "kinoshita jiroh"]
+    notes: "상업 일러스트풍"
+    
+  v05: # [TESTED] 눈동자가 크고 명확. 작가 태그 영향인지 주변에 빛 이펙트가 나타남. 모든 그림을 로리로 그림. 일러스트풍 
+    category: ["general"]
+    main_artists: ["mika pikazo", "anmi", "kantoku", "sayori"]
+    notes: "고퀄 모에"
+    
+  v06: # [TESTED] 눈 주변이 진함. 다크써글 표현해야랑때 좋음. 퀄리티 높은 일러스트풍
+    category: ["general"]
+    main_artists: ["kuavera", "rsef", "ask (askzy)", "wakamatsu masayuki", "yagami"]
+    notes: "깔끔한 일러스트"
+    
+  v07: # [TESTED] 깔끔한 일러스트, 약간 수채화 느낌. 모든 장르 무난. 웹툰풍.
+    category: ["general"]
+    main_artists: ["ke-ta", "hitoshi", "tsukasa jun", "haguhagu", "kirera"]
+    notes: "모에/미소녀"
+    
+  v08: # [TESTED] 로판느낌으로 고퀄리티, 색감이 밝음. 순진한 캐릭터같은거나 감성적인 분위기를 표현하기 좋음. 일러스트 풍
+    category: ["general"]
+    main_artists: ["hiten", "modare", "fuzichoco", "morikura en", "aoki ume"]
+    notes: "고퀄 일러스트, 부드러운 색감"
+    
+  v09: # [TESTED] 선이 거칠고 그림자 표현이 많지 않으며 입체감 없는 평면 느낌의 만화풍. 
+    category: ["semi_realistic"]
+    main_artists: ["poriuretan", "ratatatat74", "sohn woohyoung", "wagashi", "ie (raarami)"]
+    notes: "3D 태그 포함"
+    
+  v10: # [TESTED] 아래쪽 눈이 약간 올라가는 아줌마(닭장)표현에 좋음. 홍조도 나이 좀 있는 사람 표현에 괜찮음. 동인지(떡인지) 풍.
+    category: ["semi_realistic"]
+    main_artists: ["sasamori tomoe", "sohn woohyoung", "murata yuusuke", "healthyman"]
+    notes: "realistic 3d 태그 포함"
+    
+  v11: # [ISSUE] 배경이 망가짐
+    category: ["semi_realistic"]
+    main_artists: ["wanke", "dishwasher1910", "kim hyung tae", "ratatatat74", "ningen mame"]
+    notes: "3D, realistic 태그 포함"
+    
+  v12: # [TESTED] 로판풍. 디지털풍. 야한 장르에 어울리는지는 미지수. 여자애랑 별보러가는 감성물 이런거면 괜찮을지도
+    category: ["general"]
+    main_artists: ["aoi ogata", "yuki (asayuki101)", "akakura", "iuui", "cogecha", "wanke"]
+    notes: "디지털 일러스트"
+    
+  v13: # [ISSUE] 망가짐
+    category: ["semi_realistic"]
+    main_artists: ["kim eb", "quasarcake", "bm94199", "cutesexyrobutts", "henriiku (ahemaru)"]
+    notes: "3D, blender 태그 포함, 시네마틱"
+    
+  v14: # 성숙하면서 nsfw 잘 그리는 그림체. ai채팅에 많이 관찰됨. 색감이 강한 편이며 머리카락을 극세사(세밀)하게 표현함
+    category: ["semi_realistic"]
+    main_artists: ["quasarcake", "kim eb", "cutesexyrobutts", "henriiku (ahemaru)", "mika pikazo"]
+    notes: "3D, blender, realistic 태그 포함"
+    
+  v15: # [TESTED] 그림자를 포함해 실사풍이 강함. 육감적인 느낌 표현하기 좋음. 옷 입었을때보다 벗은걸 잘그림
+    category: ["general"]
+    main_artists: ["minaba hideo", "yoneyama mai", "teshima nari", "solipsist", "96yottea"]
+    notes: "상업 일러스트풍"
+    
+  v16: # [TESTED] 세미리얼리스틱, 프롬프트 이해력이 약간 부족해보이기도 함. 얇게 뜬 눈을 자주 표현. 경멸하는 표정이나 좀 나이있는 아줌마에 좀 어울림.
+    category: ["semi_realistic"]
+    main_artists: ["dishwasher1910", "kim hyung tae", "mameojitan", "sohn woohyoung", "ie (raarami)"]
+    notes: "강제화 태그 제거됨"
+    
+  v17: # [TESTED] 정말 무난한 일러스트/웹툰형. 모난곳이 없음. 중고딩~대학생 나이대의 캐릭터를 깔끔하게 잘 표현. 깔끔한 그림체. -GOOD
+    category: ["general"]
+    main_artists: ["misaka 12003-gou", "myabit", "channel", "momokumo", "ie (raarami)"]
+    notes: "웹툰 스타일, 한국풍"
+    
+  v18: # [TESTED] 색을 밝게 씀. 로판풍. 고퀄리티 일러스트 느낌. 육덕진 느낌 표현에는 좋지 않음. 깔끔함.
+    category: ["general"]
+    main_artists: ["dore", "yoya yogurt", "wanke", "rurudo", "imoko"]
+    notes: "디지털 일러스트"
+    
+  v19: # [TESTED] 한국 웹툰 스타일, 깔끔함. 색 사용도 모나지 않음. 
+    category: ["general"]
+    main_artists: ["try (lsc)", "ms. tsu", "nigou"]
+    notes: "웹툰 스타일, 강제화 태그 제거됨"
+    
+  v20: # [TESTED] 한국 웹툰 스타일, 깔끔함. 눈도 과하게 크지 않음. -GOOD
+    category: ["general"]
+    main_artists: ["misaka 12003-gou", "channel", "momokumo", "ie (raarami)", "terasu mc"]
+    notes: "웹툰 스타일, copyright 강제화 제거됨"
+    
+  v21: # [ISSUE] 배경이 망가짐
+    category: ["semi_realistic"]
+    main_artists: ["quasarcake", "kim eb", "wanke", "bm94199", "dishwasher1910"]
+    notes: "3D, blender, oil painting 태그 포함"
+    
+  v36: # [TESTED] 공식 아트 느낌. 단색을 주로 쓰며 그라데이션도 거의 없음. 앞머리 내린것보다는 가르마 있는 표현에 좋음. 어린애 표현에 적함 -GOOD
+    category: ["general"]
+    main_artists: ["yamamoto souichirou", "ciloranko", "channel", "ratatatat74", "gogalking"]
+    notes: "공식 스타일, pixiv commission"
+    
+  v37: # [ISSUE] User rejected: Yellow background artifacts/corruption
+    category: ["mature"]
+    main_artists: ["mizuryu kei", "mori taishi", "mameojitan", "mochizuki kei"]
+    notes: "글래머 작가, danganronpa 스타일 강제화 제거됨"
+    
+  v38: # [TESTED] 일본 일러스트/만화풍 그림체. 무난하게 잘나옴. 밝은 색감. 육감적인 것보다는 고퀄 일러스트 느낌에 가까움.
+    category: ["general"]
+    main_artists: ["ciloranko", "gogalking", "karyln", "ask (askzy)", "healthyman"]
+    notes: "노라인아트 스타일"
+    
+  v39: # [ISSUE] User rejected: messy background artifacts/corruption
+    category: ["mature"]
+    main_artists: ["rifleman1130", "myabit", "shexyo", "mx2j", "do m kaeru"]
+    notes: "성인 작가 다수"
+    
+  v40: # [TESTED] 깔끔한 웹툰, 동인지 만화 스타일, 무난함. 근데 중간에 가르마가 계속 생기려고 함.
+    category: ["general"]
+    main_artists: ["asanagi", "ahemaru", "hyulla", "beeeeen", "myabit"]
+    notes: "일반 일러스트"
+    
+  v41: # [TESTED] 거칠고 어두운 색감. 잔머리카락 표현이 매우 많음. 육감작인 표현에 적합.
+    category: ["mature"]
+    main_artists: ["mizuryu kei", "shexyo", "quasarcake", "asura", "mochizuki kei"]
+    notes: "성인 작가 다수"
+    
+  v42: # [TESTED] 세미리얼리스틱. 로판 느낌이 매우 강함. 음영을 매우 강하게 표현. 육감적인 몸 표현에 좋음
+    category: ["general"]
+    main_artists: ["ask (askzy)", "ratatatat74", "gogalking", "magotsuki", "ohisashiburi"]
+    notes: "일반 일러스트"
+    
+  v43: # [ISSUE] 배경이 약간씩 일그러짐. 크지는 않은데 다른 그림체가 많아서 굳이
+    category: ["general"]
+    main_artists: ["blackbox", "sukja", "mika pikazo", "gogalking", "wanke"]
+    notes: "공식 스타일"
+    
+  v44: # [TESTED] 깔끔한 공식 스타일, 웹툰 만화에 어울리며 무난. 색 사용도 모나지 않음. 
+    category: ["general"]
+    main_artists: ["channel", "quasarcake", "gogalking", "rurudo", "dishwasher1910"]
+    notes: "공식 스타일"
+    
+  v45: # [TESTED] 초롱초롱한 눈동자. 고퀄리티 느낌이 강함. 약간 리얼리스틱한 그림자의 사용.
+    category: ["general"]
+    main_artists: ["ratatatat74", "quasarcake", "ciloranko", "mika pikazo", "ao"]
+    notes: "공식 스타일"
+    
+  v46: # [TESTED] 웹툰, 공식 스타일. 살색 표현도 잘해서 벗은 몸도 잘 그림. 눈은 약간 초롱초롱해서 과격한거 표현하기에는 안좋음
+    category: ["general"]
+    main_artists: ["gogalking", "qiandaiyiyu", "quasarcake", "ciloranko", "mika pikazo"]
+    notes: "공식 스타일"
+    
+  v47: # [ISSUE] 배경이 망가짐
+    category: ["general"]
+    main_artists: ["wanke", "dishwasher1910", "ratatatat74", "hanaseto", "starshadowmagician"]
+    notes: "공식 스타일"
+    
+  v48: # [TESTED] 깔끔한 공식 스타일, 웹툰 만화형. 무난함. -GOOD
+    category: ["general"]
+    main_artists: ["karyln", "ohisashiburi", "rusellunt", "modare", "gogalking"]
+    notes: "일반 일러스트"
+    
+  v49: # [TESTED] 조금 무니고 거친 색 사용. 육감적인거에 약간 어울림. 세미리얼리스틱. 그림자를 잘씀.
+    category: ["general"]
+    main_artists: ["sapysha", "ratatatat74", "rusellunt", "abae", "gemi ningen"]
+    notes: "공식 스타일"
+    
+  v50: # [ISSUE?] 그림체는 나쁘지 않은데 가끔 이상한 글자가 좀 많이 적힘. 타율 낮으면 버리는걸로하자.
+    category: ["semi_realistic", "mature"]
+    main_artists: ["mori taishi", "mameojitan", "ratatatat74", "mizuryu kei", "gogalking"]
+    notes: "3D 태그 포함, 성인 작가"
+    
+  v51: # [ISSUE] 배경이 망가짐
+    category: ["semi_realistic"]
+    main_artists: ["ratatatat74", "modare", "ssambatea", "dishwasher1910", "henriiku (ahemaru)"]
+    notes: "3D 태그 포함, rating:explicit 제거됨"
+    
+  v52: # [TESTED] 이유는 모르겠으나 앞머리를 까는 애들이 많이 나옴. 깔끔하고 표현도 좋음. 웹툰, 디지털 일러스트풍
+    category: ["general"]
+    main_artists: ["yamamoto souichirou", "channel", "gogalking", "ratatatat74", "kawacy"]
+    notes: "일반 일러스트"
+    
+  v53: # [ISSUE] 배경이 망가짐
+    category: ["general"]
+    main_artists: ["rolua", "ohisashiburi", "qys3", "tekito midori", "sheya"]
+    notes: "일반 일러스트"
+    
+  v54: # [TESTED] 깔끔한 웹툰 스타일. 표현력도 괜찮고 무난함. 
+    category: ["mature"]
+    main_artists: ["k.pumpkin", "mori taishi", "kkuem", "torino aqua", "danimaru"]
+    notes: "mori taishi 포함"
+    
+  v55: # [ISSUE] 망가짐
+    category: ["general"]
+    main_artists: ["yueepon", "dishwasher1910", "33 gaff", "kenkou cross", "ssambatea"]
+    notes: "일반 일러스트"
+    
+  v56: # [ISSUE] 망가짐
+    category: ["general"]
+    main_artists: ["dishwasher1910", "33 gaff", "kenkou cross", "yueepon", "ssambatea"]
+    notes: "일반 일러스트"
+    
+  v57: # [TESTED] 어두운 느낌의 반사실적 표현에 좋음. 그림사 표현이 일반 일러스트에 비해 강하게 사실적이며 무거운 느낌.
+    category: ["general"]
+    main_artists: ["kishida mel", "myabit", "gogalking", "kawacy", "reoen"]
+    notes: "일반 일러스트"
+    
+  v58: # [TESTED] 깔끔하고 색채가 약간 강한편. 
+    category: ["general"]
+    main_artists: ["lam (ramdayo)", "ohisashiburi", "mebaru", "channel", "yamamoto souichirou"]
+    notes: "일반 일러스트"
+    
+  v59: # [TESTED] 조금 부드러운 느낌. 웹툰 만화풍 그림체. 눈이 좀 크게 표현됨.
+    category: ["general"]
+    main_artists: ["gogalking", "ratatatat74", "rsef", "ask (askzy)", "modare"]
+    notes: "일반 일러스트"
+    
+  v60: # [ISSUE] 망가짐
+    category: ["general"]
+    main_artists: ["love cacao", "au", "nixeu", "dishwasher1910", "yoneyama mai"]
+    notes: "일반 일러스트"
+    
+  v61: # [TESTED] 조금 부드러운 느낌. 웹툰 만화풍 그림체. 깔끔하고 좋음.
+    category: ["general"]
+    main_artists: ["rusellunt", "yamamoto souichirou", "gogalking", "kim hyung tae", "k.pumpkin"]
+    notes: "일반 일러스트"
+    
+  v62: # [TESTED] 초롱초롱한 눈. 반사실적인 그림자 사용. 깔끔한 선 사용.
+    category: ["general"]
+    main_artists: ["122pxsheol", "ohisashiburi", "oharu-chan", "mameojitan", "ciloranko"]
+    notes: "일반 일러스트"
+    
+  v63: # [TESTED] 매우 깔끔한 웹툰형. 무난함. 
+    category: ["general"]
+    main_artists: ["namori", "channel", "ohisashiburi", "modare", "gogalking"]
+    notes: "일반 일러스트"
+    
+  v64: # [ISSUE] 약간 캐주얼하면서도 씹덕스럽게 잘 나오지만, standing 생성 시 배경에 노이즈가 자주 발생. -> 그냥 노이즈가 많음
+    category: ["general"]
+    main_artists: ["channel", "ratatatat74", "ebora", "yoneyama mai", "baffu"]
+    notes: "일반 일러스트"
+    
+  v65: # [TESTED] 약간 초롱초롱한 눈. 로판느낌. 색감리 밝은편. 육감적인것보다는 고퀄리티 일러스트에 어울림. 깔끔하고 좋음.
+    category: ["general"]
+    main_artists: ["ohisashiburi", "john kafka", "secretfj520", "mameojitan", "magotsuki"]
+    notes: "일반 일러스트"
+    
+  v66: # [ISSUE] 망가짐
+    category: ["general"]
+    main_artists: ["6 (yuchae)", "yueepon", "channel", "maccha", "gogalking"]
+    notes: "일반 일러스트"
+    
+  v67: # [TESTED] 조금 초롱초롱한 눈. 고퀄리티 느낌도 있지만 전반적으로 깔끔. 
+    category: ["general"]
+    main_artists: ["sushio", "magotsuki", "secretfj520", "channel", "ratatatat74"]
+    notes: "일반 일러스트"
+    
+  v68: # [ISSUE] 배경이 망가짐
+    category: ["general"]
+    main_artists: ["arisaka ako", "yumi xsh", "haihaiera", "yoneyama mai", "gogalking"]
+    notes: "일반 일러스트"
+    
+  v69: # [TESTED] 부드러운 웹툰, 동인지 풍 그림체. 무난함.
+    category: ["general"]
+    main_artists: ["yoneyama mai", "john kafka", "gogalking", "wlop", "ssambatea"]
+    notes: "일반 일러스트"
+    
+  v70: # [ISSUE] 배경이 망가짐
+    category: ["general"]
+    main_artists: ["arisaka ako", "yumi xsh", "channel", "haihaiera", "yoneyama mai"]
+    notes: "일반 일러스트"
+    
+  v71: # [TESTED] 정말 강한 수채화 일러스트 느낌. 과할 정도라서 좋은지 모르겠음. 개성적이긴 함.
+    category: ["semi_realistic"]
+    main_artists: ["naohiro ito", "kawacy", "96yottea", "shexyo", "lam"]
+    notes: "painting medium, upper body 제거됨"
+    
+  v72: # [TESTED] 90~00년대 애니메이션 풍의 틀딱 레트로 그림체. 00년대 야애니나 아짤에 나오는 느낌.
+    category: ["general"]
+    main_artists: ["himemura saki", "houtengeki", "momomatang", "rehu", "katsura kenichirou"]
+    notes: "레트로 스타일"
+    
+  v73: # [TESTED] 미국 카툰 느낌의 그림체. 개성이 매우 강함.
+    category: ["general"]
+    main_artists: ["hanabushi", "vanripper", "vivziepop", "gogalking", "horikoshi kouhei"]
+    notes: "일반 일러스트"
+    
+  v74: # [TESTED] 반사실적 느낌의 그림체. 육감적 표현. 약간 어두움. 살색을 진하게 쓰는 편.
+    category: ["realistic"]
+    main_artists: ["period (anony 83)", "terasu mc", "healthyman", "blimax", "ie"]
+    notes: "photorealistic"
+    
+  v75: # [TESTED] 슥슥 빠르게 글린 만화책 그림체. 00년대 만화책에 나올것같은 느낌으로 그림자 사용이 거의 없이 단색. 근데 그림체가 안정적이지 못함
+    category: ["general"]
+    main_artists: ["ohisashiburi", "ratatatat74", "mi2mi2_minmi", "p(tidoriashi)", "horikoshikouhei"]
+    notes: "일반 일러스트"
+    
+  v76: # [TESTED] 단색 위주의 디지털 만화 형식인데, 퀄리티가 높지 않은 느낌. 미국 카툰풍을 한스푼 넣은 느낌.
+    category: ["general"]
+    main_artists: ["shinjiro", "inoue kiyoshirou", "formicid"]
+    notes: "일반 일러스트"
+    
+  v77: # [ISSUE] 배경이 망가짐
+    category: ["semi_realistic"]
+    main_artists: ["shinjiro", "rouka", "wanke", "atie1225", "ratatatat74"]
+    notes: "3d, blender, photorealistic"
+    
+  v78: # [ISSUE] 배경이 망가짐
+    category: ["semi_realistic"]
+    main_artists: ["dishwasher1910", "wanke", "atie1225", "pigeon666", "mimyo"]
+    notes: "3d, blender, photorealistic"
+    
+  v79: # [ISSUE] 배경이 망가짐
+    category: ["semi_realistic"]
+    main_artists: ["wanke", "wlop", "au", "daehocha", "kidmo"]
+    notes: "3d, blender, photorealistic"
+    
+  v80: # [TESTED] 사실적인 그림체인데 약간 불쾌한 골짜기임. 타율이 높지 않음. 
+    category: ["realistic"]
+    main_artists: ["jagercoke", "nagamerin", "ohisashiburi", "ilya kuvshinov", "wanke"]
+    notes: "photorealistic, ray tracing"
+    
+  v81: # [ISSUE] 배경이 망가짐
+    category: ["semi_realistic"]
+    main_artists: ["negisaray", "kim hyung tae", "bm94199", "wanke", "wlop"]
+    notes: "blender, realistic, 강제화 제거됨"
+    
+  v82: # [ISSUE] 타율 낮음. 노이즈 발생 경우 수 많음  배경이 망가짐
+    category: ["semi_realistic"]
+    main_artists: ["milkychu", "wanke", "ilya kuvshinov", "wlop", "zero_q_0q"]
+    notes: "blender, photorealistic, 강제화 제거됨"
+    
+  v83: # [TESTED] 00년대 초 애니메이션 풍의 그림체. 레트로 스타일.
+    category: ["general"]
+    main_artists: ["himemura saki", "houtengeki", "ixy", "momomatang", "mx2j"]
+    notes: "레트로 스타일"
+    
+  v84: # [TESTED] 매우 단순화된 카툰풍 그림체. 야짤에 어울리는지는 모르겠으나 개성있는 카툰형임. 단색이며 그림자 사용이 전무함.
+    category: ["general"]
+    main_artists: ["homura subaru", "miyoshi yoshimi", "dayama", "kimhiro"]
+    notes: "일반 일러스트"
+    
+  v85: # [ISSUE] 배경이 망가짐
+    category: ["semi_realistic"]
+    main_artists: ["ishigaki takashi", "danimaru", "freng", "channel", "ratatatat74"]
+    notes: "3d, realistic"
+    
+  v86: # [TESTED] 거의 단색만 사용하면 그림자 사용이 전무하고 거의 모든 상황에서 흰색이 나옴. 애매함
+    category: ["general"]
+    main_artists: ["96yottea", "luozhou pile", "gravitydusty", "lemonail"]
+    notes: "강제화 대량 제거됨"
+    
+  v87: # [ISSUE] Background artifacts breaking
+    category: ["general"]
+    main_artists: ["imigimuru", "inoue kiyoshirou", "ame", "nokoru sora", "hata4564"]
+    notes: "일반 일러스트"
+    
+  v88: # [ISSUE] Background artifacts breaking
+    category: ["semi_realistic"]
+    main_artists: ["imigimuru", "jonpei", "inoue kiyoshirou", "ame", "hata4564"]
+    notes: "realistic, 강제화 제거됨"
+    
+  v89: # [TESTED] 거친 선, 정돈하지 않은 동인지. 만화 그림체에 가까움. 그림자 사용은 거의 없는 평면형 그림체.
+    category: ["general"]
+    main_artists: ["huhi", "pottsness", "freng", "gogalking", "ratatatat74"]
+    notes: "일반 일러스트"
+    
+  v90: # [TESTED] 매우 단순화된 카툰풍 그림체. 귀엽긴 한데 야한거에 어울리는지는 모르겠음.
+    category: ["general"]
+    main_artists: ["arang", "tianliang", "junsuina fujunbutsu", "chan co"]
+    notes: "pastel color"
+    
+  v91: # [TESTED] 고퀄리티 사실적. 대부분 캐릭터가 눈에 안광이 있게 나옴. 차가운 느낌에 좋음. 색감이 강한편.
+    category: ["general"]
+    main_artists: ["kim hana", "evilgun", "ukai saki", "takssmask", "realmbw"]
+    notes: "dungeon and fighter"
+    
+  v92: # [TESTED] 깔끔하고 무난하며 반사실적인 그림자 사용. 표현력도 괜찮은 편. 육감적인 것도 나쁘지 않음.
+    category: ["general"]
+    main_artists: ["evilgun", "ukai saki", "punc p", "takssmask", "albino"]
+    notes: "일반 일러스트"
+    
+  v93: # [ISSUE] Background artifacts breaking
+    category: ["semi_realistic"]
+    main_artists: ["henriiku", "hyulla", "freng", "dishwasher1910", "bm94199"]
+    notes: "3d, blender, oil painting"
+    
+  v94: # [TESTED] 그림자를 잘쓰며 반사실적인 몸매(육감적 표현)에 좋음. 
+    category: ["semi_realistic"]
+    main_artists: ["blue gk", "michiking", "konya karasue", "ratatatat74", "bm94199"]
+    notes: "3d, blender"
+    
+  v95: # [ISSUE] Background artifacts breaking
+    category: ["semi_realistic"]
+    main_artists: ["freng", "henriiku", "mx2j", "ratatatat74", "shinjiro"]
+    notes: "3d, blender"
+    
+  v96: # [TESTED] 반사실적 유채화 느낌. 유채화 느낌이 매우 강함.
+    category: ["semi_realistic"]
+    main_artists: ["henriiku", "cutesexyrobutts", "kim hyung tae", "wlop", "96yottea"]
+    notes: "3d, blender, oil painting"
+    
+  v97: # [TESTED] 깔끔하며 과하지 않은 느낌의 표현력. 웹툰풍. 육감적 표현이나 디테일 표현도 좋음.
+    category: ["semi_realistic"]
+    main_artists: ["blue gk", "michiking", "ratatatat74", "bm94199", "kkuem"]
+    notes: "3d, blender"
+    
+  v98: # [TESTED] 과할 정도로 색 사용이 강함. 그림체는 현대식이지만 채색은 레프토풍 느낌이 강한 일러스트. 반사실적.
+    category: ["general"]
+    main_artists: ["2015x127", "chenpeipeiii", "natwjeq", "hanaseto", "96yottea"]
+    notes: "일반 일러스트"
+    
+  v99: # [TESTED] 그림자 사용이 좋은 반사실적 일러스트. 무난하고 깔끔하며 디테일 챙기기 좋음.
+    category: ["general"]
+    main_artists: ["wagashi", "muchi maro", "ratatatat74", "sparrowl", "typehatena"]
+    notes: "일반 일러스트"
+    
+  v100: # [TESTED] 조금 누리끼리하며 배경에 계속 글자가 이펙트로 나옴. 천박한 만화 느낌에 어울리나 과할 정도로 피부가 색바랜 느낌임.
+    category: ["semi_realistic"]
+    main_artists: ["henriiku", "obui", "ie", "dorontabi", "feipin_zhanshi"]
+    notes: "realistic, photorealistic"
+    
+  v101: # [ISSUE] Background artifacts breaking
+    category: ["general"]
+    main_artists: ["ie", "healthyman", "meme50", "adpx", "siribang 1215"]
+    notes: "일반 일러스트"
+    
+  v102: # [TESTED] 반사실적, 살색이 약간 강하며 눈이 좀 얇게 표현되며 조금 물빠진 색상. 천박한 표현에 적합.
+    category: ["general"]
+    main_artists: ["sasamori tomoe", "sohn woohyoung", "kidmo", "seoyong", "shinjiro"]
+    notes: "일반 일러스트"
+    
+  v103: # [ISSUE] 그림체 유지가 안되고 꺠짐
+    category: ["general"]
+    main_artists: ["nora higuma"]
+    notes: "단독 작가"
+    
+  v104: # [ISSUE] 그림체 유지가 안되며 계속 배경에 글자가 추가됨. 너무 스타일도 올드하고 00년에 야망가 느낌.
+    category: ["vulgar"]
+    main_artists: ["fellatrix", "ankoman", "syuro", "neromashin"]
+    notes: "닭장/하드코어 스타일"
+    
+  v105: # [TESTED] 조금 색이 바랜 느낌을 표현하기 좋음. 다만 머리카락 잔털 등 깔끔하지 못함. 반사실적 몸매 표현으로 육감적인거 표현하기에는 좋음.
+    category: ["general"]
+    main_artists: ["hokori sakuni", "myabit", "gogalking", "hyulla", "kawacy"]
+    notes: "일반 일러스트"
+    
+  v106: # [TESTED] 과할정도로 천박한 느낌. 글자가 배경에 나옴. 얼굴 망가뜨리는 그림체. 매우 호불호 강할 듯한 느낌. 색감도 강함.
+    category: ["vulgar"]
+    main_artists: ["ahemaru", "geulimykun", "fellatrix", "neroma shin", "sugoihi"]
+    notes: "닭장/하드코어 스타일"
+    
+  v107: # [ISSUE] 망가짐
+    category: ["semi_realistic"]
+    main_artists: ["nonco", "jl tan", "imamura ryou", "wagashi", "gogalking"]
+    notes: "realistic"
+    
+  v108: # [TESTED] 올드한 카툰풍. 매우 단조로운 배경. 그림체가 안정적이지 못한 느낌은 드는데 천박한 그림 표현을 잘알지도.
+    category: ["mature"]
+    main_artists: ["ratatatat74", "terasu mc", "halcon", "henriiku"]
+    notes: "netorare, 성숙한 스타일"
+    
+  v109: # [TESTED] 카툰풍 데포르메. 귀여운 그림체. 그림자 사용이 거의 없는 단색 위주 채색. 귀여운 캐릭터 표현하기 좋음
+    category: ["general"]
+    main_artists: ["ask", "jtveemo", "cain", "ningen mame", "zankuro"]
+    notes: "일반 일러스트"
+    
+  v110: # [TESTED] 세미카툰풍 데포르메. 귀여운 캐릭터 표현하기에 적합. 다른 카툰풍보다는 아주 약간 더 성인처럼 표현하기는 하지만 카툰풍인것은 마찬가지. 
+    category: ["general"]
+    main_artists: ["ask", "astg", "jtveemo", "tsunako", "wagashi"]
+    notes: "일반 일러스트"
+    
+  v111: # [TESTED] 세미카툰풍 데포르메. 귀여운 캐릭터 표현하기에 적합. v110보다도 조금은 더 일러스트에 가까운 카툰풍.
+    category: ["general"]
+    main_artists: ["ningen mame", "cain", "null", "taesi", "blue gk"]
+    notes: "일반 일러스트"
+    
+  v112: # [TESTED] 세미카툰풍 + 도트. 귀여운 캐릭터를 도트로 표현하기 위한 용도. 도트치고 안정적임.
+    category: ["general"]
+    main_artists: ["ningen mame", "hella p", "taesi", "blue gk", "namako daibakuhatsu"]
+    notes: "pixel art"
+    
+  v113: # [TESTED] 세미카툰풍 데포르메. 초롱초롱한 눈. 귀여운 캐릭터 표현에 적합. 
+    category: ["general"]
+    main_artists: ["ningen mame", "jtveemo", "terada tera", "ask", "zankuro"]
+    notes: "일반 일러스트"
+    
+  v114: # [TESTED] 세미카툰풍 데포르메. 귀여운 캐릭터 표현하기에 적합.
+    category: ["general"]
+    main_artists: ["jtveemo", "null", "d_jirooo", "nyong nyong", "wagashi"]
+    notes: "일반 일러스트"
+    
+  v115: # [TESTED] 데포르메가 좀 강한 스타일. 몸매가 빈약한 캐릭터를 좀 더 잘 그림
+    category: ["general"]
+    main_artists: ["ningen mame", "cain", "butakoma 300g", "blue gk", "zankuro"]
+    notes: "일반 일러스트"
+    
+  v116: # [TESTED] 데포르메와 일반 일러스트의 중간쯤. 깔끔하게 단색을 주로 이용.
+    category: ["general"]
+    main_artists: ["ask", "fangdan runiu", "astg", "tsunako", "shigure ui"]
+    notes: "일반 일러스트"
+    
+  v117: # [TESTED] 일러스트 느낌보다는 깔끔한 웹툰 만화 스타일. 그림자를 좀 써서 살색을 부각시키는 편.
+    category: ["general"]
+    main_artists: ["ningen mame", "wow", "blue gk", "taesi", "kunaboto"]
+    notes: "일반 일러스트"
+    
+  v118: # [TESTED] 세미카툰풍 데포르메. 귀여운 캐릭터 표현하기에 적합.
+    category: ["general"]
+    main_artists: ["terada tera", "tianliang", "zankuro", "wagashi", "grimgrim"]
+    notes: "cel shading"
+    
+  v119: # [TESTED] 수채화 느낌. 표현력은 괜찮은데 수채화 특성상 개성이 강함. + 야하게 표현하려는 경향성이 강하다는 제보.
+    category: ["general"]
+    main_artists: ["iuui", "ningen_mame", "ciloranko", "tianliang", "kawacy"]
+    notes: "일반 일러스트"
+    
+  v120: # [TESTED] 웹툰 동인지픙. 평면적인 느낌의 채색을 쓰며 피부색에 살색을 좀 많이 넣는 만화 느낌의 그림체. 육감적인 표현은 나쁘지 않음.
+    category: ["semi_realistic"]
+    main_artists: ["healthyman", "poper", "5t", "motsuaki", "ahemaru"]
+    notes: "realistic"
+    
+  v121: # [TESTED] 웹툰 동인지/만화 풍 그림체. 그림자를 거의쓰지 않고 평면적으로 표현하며 깔끔함. 
+    category: ["general"]
+    main_artists: ["teshima nari", "ratatatat74", "nonco", "sohn woohyoung", "wagashi"]
+    notes: "일반 일러스트"
+    
+  v122: # [TESTED] 사실적 그림체. 매우 육감적임. 다만 사실작 그림체 특성상 얼굴이 약간 불쾌한 골짜기로 나올 경우가 있으니 주의 필요.
+    category: ["semi_realistic"]
+    main_artists: ["ie", "sos adult", "qiandaiyiyu", "hizuki_akira", "laserflip"]
+    notes: "photorealistic, blender, 3d"
+    
+  v123: # [TESTED] 사실적 그림체. 애니메이션 풍을 유지하면서 반사실적인 몸을 매우 잘 표현. 디테일한 신체부위 표현에 유용
+    category: ["semi_realistic"]
+    main_artists: ["piromizu", "aya", "touzai", "daeho cha", "raikoart"]
+    notes: "고광택 웹툰 스타일, Soft Glossy Skin"
+    
+  v124: # [TESTED] 사실적 그림체. 애니메이션 풍보다는 사실적인 2.5d에 가까운 그림체. 
+    category: ["realistic"]
+    main_artists: ["nagamerin", "shal.e", "healthyman", "wlop", "sang delan"]
+    notes: "실사풍 인형 스타일, Semi-Real Doll Style"
+    
+  v125: # [TESTED] 애니메이션 카툰 웹툰형 그림체. 얼굴은 부드러운 평면인데 신체는 2.5d여서 디테일한 또는 육감적인 세부 부위 묘사에 좋음
+    category: ["general"]
+    main_artists: ["gentlecat", "nova 1810", "muchi maro", "gogalking", "healthyman"]
+    notes: "고밀도 애니메이션 스타일, Detailed Anime Style"
+    
+  v126: # [TESTED] 사실적 그림체. 색감이 쨍한 편. 홍조도 강함. 2.5d ai그림 게임들에 자주나올듯한 그림체
+    category: ["semi_realistic"]
+    main_artists: ["yoneyama mai", "kidmo", "nixeu", "kim hyung tae", "murata yuusuke"]
+    notes: "초고화질 반실사 스타일, High-Gloss Semi-Realism"
+    
+  v127: # [TESTED] 전형적인 미끈미끈한 ai 그림체. 다만 인기 많음. 성숙 특화. 2.5d에 가까운 반사실적 그림체.
+    category: ["mature", "semi_realistic"]
+    main_artists: ["beeeeen", "hyulla", "yunsang", "healthyman", "qiandaiyiyu"]
+    notes: "고광택 글래머 스타일, High-Gloss Glamour"
+    
+  v128: # [TESTED] 대부분 캐릭터 머리가 삐침으로 나옴. 매우 어둡고 퇴폐적인 분위기의 카툰형 그림체. 
+    category: ["general"]
+    main_artists: ["imai akira", "cain", "aomizuan", "hiramedousa"]
+    notes: "뮤트 컬러, 독특한 선화/질감 스타일, Muted Color Style"
+    
+  v129: # [ISSUE] 배경이 약간 깨짐. 그림체 자체는 괜찮은 반사실 그림체인데 배경에 이상한 무늬가 자주 생김
+    category: ["semi_realistic"]
+    main_artists: ["shal.e", "sano yuuto", "flamma", "sangsoo_jeong"]
+    notes: "다크/볼류메트릭 라이팅, 고밀도 피부, Dark/Volumetric & Detailed Skin"
+    
+  v130: # [TESTED] 카툰 애니메이션형 그림체. 그림자 사용이 거의 없고 쯔꾸르 게임에 나올 것 같은 그림체.
+    category: ["general"]
+    main_artists: ["imamura ryou", "sparrowl", "muchi maro", "wagashi"]
+    notes: "고채도 바이브런트 애니 스타일, Vibrant High-Gloss Anime"
+    
+  v131: # [TESTED] 사실적 그림체. 바비인형같은 느낌. 약간 과할 정도의 사실주의
+    category: ["general"]
+    main_artists: ["higashiyama shou", "zero q 0q", "solipsist", "mokopekko"]
+    notes: "초고밀도 디테일 애니 스타일, High Density Detailed Anime"
+    
+  v132: # [ISSUE] 그림체가 좀 뭉개지며 색이 너무 바램. 무서운 느낌이 강함. 야짤보다는 회화 일러스트에 가까움.
+    category: ["semi_realistic"]
+    main_artists: ["pluvium grandis", "solipsist", "j. won han", "yasuta kaii"]
+    notes: "회화적/평면적 실사 믹스, Painterly/Flat Realism Mix"
+
+  v133: # [ISSUE] 고퀄리티보다는 귀여운 웹툰 스타일. 하지만 눈이 좀 이상하게 나오는 경향이 있음. 추천하지 않음.
+    category: ["semi_realistic"]
+    main_artists: ["ddal", "hirame"]
+    notes: "한국형 웹툰 + 고광택/육감적 피부, Glossy/Fleshy Skin Webtoon"

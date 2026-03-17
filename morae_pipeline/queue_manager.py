@@ -13,6 +13,8 @@ from typing import Optional
 
 from .client import ComfyUIClient, ComfyUIError
 from .config import PipelineConfig
+from .character.injection import CharacterInjector
+from .character.profile import CharacterLibrary
 from .controlnet.injection import ControlNetInjector
 from .workflow import WorkflowTemplate
 
@@ -103,6 +105,11 @@ class QueueManager:
         self._cn_injector: Optional[ControlNetInjector] = None
         if config.controlnet.enabled:
             self._cn_injector = ControlNetInjector(config.controlnet)
+        self._char_injector: Optional[CharacterInjector] = None
+        self._char_library: Optional[CharacterLibrary] = None
+        if config.character.enabled and config.character.characters_dir:
+            self._char_injector = CharacterInjector()
+            self._char_library = CharacterLibrary(config.character.characters_dir)
 
     def on_job_complete(self, callback):
         """Register a callback for when a job completes."""
@@ -191,6 +198,18 @@ class QueueManager:
                     for key, value in job.params.get("node_overrides", {}).items():
                         node_id, field = key.split(".", 1)
                         template.set_param(node_id, field, value)
+
+                    # Character injection (IP-Adapter, LoRA, tags)
+                    if self._char_injector and self._char_library:
+                        char_name = job.params.get(
+                            "character", self.config.character.default_character
+                        )
+                        if char_name:
+                            char_profile = self._char_library.get(char_name)
+                            if char_profile:
+                                workflow_data = template.to_dict()
+                                self._char_injector.apply_profile(workflow_data, char_profile)
+                                template = WorkflowTemplate.from_dict(workflow_data)
 
                     # ControlNet injection
                     if self._cn_injector:

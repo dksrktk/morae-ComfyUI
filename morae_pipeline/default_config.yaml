@@ -22,6 +22,19 @@ curation:
   face_enabled: false         # Set to true + provide face_reference_path
   # face_reference_path: "./input/reference_face.png"
 
+character:
+  enabled: false               # Set to true + provide characters_dir
+  # characters_dir: "./input/characters"
+  # default_character: "my_character"
+
+  # IP-Adapter FaceID settings
+  ip_adapter_model: "ip-adapter-faceid-plusv2_sd15.bin"
+  clip_vision_model: "model.safetensors"
+
+  # Tag injection
+  prepend_tags: true            # Prepend character tags to positive prompt
+  append_negative_tags: true    # Append character negative tags
+
 controlnet:
   enabled: false               # Set to true + provide pose_library_path
   model_name: "control_v11p_sd15_openpose.safetensors"

@@ -47,6 +47,21 @@ class CurationConfig:
 
 
 @dataclass
+class CharacterConfig:
+    enabled: bool = False
+    characters_dir: Optional[str] = None  # e.g. "./input/characters"
+    default_character: Optional[str] = None  # Character name to use by default
+
+    # IP-Adapter settings
+    ip_adapter_model: str = "ip-adapter-faceid-plusv2_sd15.bin"
+    clip_vision_model: str = "model.safetensors"  # CLIP-ViT-H-14
+
+    # Tag injection
+    prepend_tags: bool = True  # Prepend character tags to positive prompt
+    append_negative_tags: bool = True  # Append character negative tags
+
+
+@dataclass
 class ControlNetConfig:
     enabled: bool = False  # Off by default, requires ControlNet workflow template
     model_name: str = "control_v11p_sd15_openpose.safetensors"
@@ -102,6 +117,7 @@ class QueueConfig:
 class PipelineConfig:
     comfyui: ComfyUIConfig = field(default_factory=ComfyUIConfig)
     curation: CurationConfig = field(default_factory=CurationConfig)
+    character: CharacterConfig = field(default_factory=CharacterConfig)
     controlnet: ControlNetConfig = field(default_factory=ControlNetConfig)
     censorship: CensorshipConfig = field(default_factory=CensorshipConfig)
     queue: QueueConfig = field(default_factory=QueueConfig)
@@ -117,6 +133,8 @@ class PipelineConfig:
             config.comfyui = ComfyUIConfig(**data["comfyui"])
         if "curation" in data:
             config.curation = CurationConfig(**data["curation"])
+        if "character" in data:
+            config.character = CharacterConfig(**data["character"])
         if "controlnet" in data:
             config.controlnet = ControlNetConfig(**data["controlnet"])
         if "censorship" in data:

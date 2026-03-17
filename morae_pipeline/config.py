@@ -47,6 +47,30 @@ class CurationConfig:
 
 
 @dataclass
+class ControlNetConfig:
+    enabled: bool = False  # Off by default, requires ControlNet workflow template
+    model_name: str = "control_v11p_sd15_openpose.safetensors"
+
+    # Pose library
+    pose_library_path: Optional[str] = None  # e.g. "./input/poses"
+    pose_category: Optional[str] = None  # Filter by category (e.g. "pov", "complex")
+
+    # Strength range for randomization (prevents identical outputs)
+    strength_default: float = 0.7
+    strength_min: float = 0.5
+    strength_max: float = 0.85
+
+    # Ending step: ControlNet only guides early denoising (allows variation in details)
+    end_percent_default: float = 0.4
+    end_percent_min: float = 0.3
+    end_percent_max: float = 0.5
+
+    # Variation seed for subtle differences per image
+    variation_enabled: bool = True
+    variation_strength: float = 0.05  # Subtle variation
+
+
+@dataclass
 class CensorshipConfig:
     enabled: bool = False  # Off by default, requires YOLO model
     device: str = "cuda"
@@ -78,6 +102,7 @@ class QueueConfig:
 class PipelineConfig:
     comfyui: ComfyUIConfig = field(default_factory=ComfyUIConfig)
     curation: CurationConfig = field(default_factory=CurationConfig)
+    controlnet: ControlNetConfig = field(default_factory=ControlNetConfig)
     censorship: CensorshipConfig = field(default_factory=CensorshipConfig)
     queue: QueueConfig = field(default_factory=QueueConfig)
     output_dir: str = "./output/morae"
@@ -92,6 +117,8 @@ class PipelineConfig:
             config.comfyui = ComfyUIConfig(**data["comfyui"])
         if "curation" in data:
             config.curation = CurationConfig(**data["curation"])
+        if "controlnet" in data:
+            config.controlnet = ControlNetConfig(**data["controlnet"])
         if "censorship" in data:
             config.censorship = CensorshipConfig(**data["censorship"])
         if "queue" in data:

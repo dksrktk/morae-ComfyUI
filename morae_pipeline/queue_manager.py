@@ -13,6 +13,7 @@ from typing import Optional
 
 from .client import ComfyUIClient, ComfyUIError
 from .config import PipelineConfig
+from .controlnet.injection import ControlNetInjector
 from .workflow import WorkflowTemplate
 
 logger = logging.getLogger(__name__)
@@ -99,6 +100,9 @@ class QueueManager:
         self.config = config
         self.state: Optional[SessionState] = None
         self._on_job_complete = None  # callback(job, output_files)
+        self._cn_injector: Optional[ControlNetInjector] = None
+        if config.controlnet.enabled:
+            self._cn_injector = ControlNetInjector(config.controlnet)
 
     def on_job_complete(self, callback):
         """Register a callback for when a job completes."""
@@ -187,6 +191,20 @@ class QueueManager:
                     for key, value in job.params.get("node_overrides", {}).items():
                         node_id, field = key.split(".", 1)
                         template.set_param(node_id, field, value)
+
+                    # ControlNet injection
+                    if self._cn_injector:
+                        cn_params = self._cn_injector.resolve_params(
+                            pose_category=job.params.get("pose_category"),
+                            pose_tags=job.params.get("pose_tags"),
+                            pose_path=job.params.get("pose_path"),
+                            seed=job.params.get("seed"),
+                        )
+                        if cn_params:
+                            workflow_data = template.to_dict()
+                            self._cn_injector.apply_to_workflow(workflow_data, cn_params)
+                            # Replace template data with injected version
+                            template = WorkflowTemplate.from_dict(workflow_data)
 
                     output_files = await self.client.generate_and_download(
                         template.to_dict(),

@@ -3,7 +3,7 @@
 Pipeline:
   1. SAM2 mask (pixel-precise contour)
   2. Semantic subtraction (remove face/tongue from mask)
-  3. Distance Transform gradient (smooth edges following contour shape)
+  3. AutoCensor-style refinement (supersample + contour smoothing + AA)
   4. Anus: elliptical gradient (SAM2 unreliable for anus)
 """
 
@@ -14,11 +14,318 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from scipy.ndimage import gaussian_filter
 from PIL import Image
 
 from .detector import Detection
 
 logger = logging.getLogger(__name__)
+
+
+def smooth_contour(cnt: np.ndarray, smooth_factor: float = 2.0) -> np.ndarray:
+    """Smooth contour points using B-spline interpolation (AutoCensor algorithm).
+
+    Args:
+        cnt: Contour points array (N, 1, 2) or (N, 2)
+        smooth_factor: Controls output point density (higher = more points)
+
+    Returns:
+        Smoothed contour points (N, 1, 2) format for cv2.drawContours
+    """
+    from scipy.interpolate import splprep, splev
+
+    # Reshape to (N, 2) if needed
+    pts = cnt.reshape(-1, 2)
+    n = len(pts)
+
+    if n < 10:
+        return cnt
+
+    # Remove duplicate consecutive points
+    mask = np.ones(n, dtype=bool)
+    mask[1:] = np.any(np.diff(pts, axis=0) != 0, axis=1)
+    pts = pts[mask]
+    n = len(pts)
+
+    if n < 10:
+        return cnt
+
+    try:
+        # Convert to complex for spline fitting
+        pts_c = np.array([pts[:, 0], pts[:, 1]])
+
+        # Fit periodic cubic B-spline
+        # s = smoothing factor, per=True for closed curve, k=3 for cubic
+        tck, u = splprep(
+            [pts_c[0, :], pts_c[1, :]],
+            s=n * 2.0,  # smoothing amount
+            per=True,   # periodic (closed curve)
+            k=3,        # cubic spline
+        )
+
+        # Generate new points
+        num_points = max(int(n * smooth_factor), 200)
+        u_new = np.linspace(0, 1, num_points, endpoint=False)
+        x_new, y_new = splev(u_new, tck)
+
+        # Stack and reshape for cv2.drawContours format
+        smooth = np.column_stack([x_new, y_new]).astype(np.float64)
+        return smooth.reshape(-1, 1, 2).astype(np.int32)
+
+    except Exception:
+        # Fallback: cv2.approxPolyDP
+        try:
+            epsilon = 0.002 * cv2.arcLength(cnt, True)
+            approx = cv2.approxPolyDP(cnt, epsilon, True)
+            if len(approx) >= 3:
+                return approx
+        except Exception:
+            pass
+        return cnt
+
+
+def refine_mask_autocensor_style(
+    mask_np: np.ndarray,
+    target_size: tuple[int, int],
+    blur_sigma: float = 2.0,
+    supersample: int = 4,
+) -> np.ndarray:
+    """Refine mask using AutoCensor algorithm: supersample + B-spline smoothing + AA.
+
+    Pipeline (reverse-engineered from AutoCensor.exe):
+      1. Normalize mask to uint8
+      2. Resize to target size if needed
+      3. Threshold to binary
+      4. Extract contours with hierarchy
+      5. Smooth each contour using B-spline (smooth_factor = supersample)
+      6. Scale contours to supersample resolution
+      7. Draw on supersample canvas with anti-aliasing (LINE_AA)
+      8. Downsample with INTER_AREA
+      9. Edge-band selective blur (only blur dilate-erode transition zone)
+
+    Args:
+        mask_np: Raw mask from SAM2 (0-1 float or 0-255 uint8)
+        target_size: (width, height) of output
+        blur_sigma: Sigma for edge blur (0 = no blur)
+        supersample: Supersampling factor (2-4 recommended)
+
+    Returns:
+        Refined mask with smooth edges (0-255 uint8)
+    """
+    w, h = target_size
+    ss = max(1, supersample)
+
+    # Normalize to 0-255 uint8
+    if mask_np.max() <= 1.0:
+        m8 = (mask_np * 255).astype(np.uint8)
+    else:
+        m8 = mask_np.astype(np.uint8)
+
+    mh, mw = m8.shape[:2]
+
+    # Resize to target if different
+    if mw != w or mh != h:
+        m8 = cv2.resize(m8, (w, h), interpolation=cv2.INTER_CUBIC)
+
+    # Binarize
+    _, binary = cv2.threshold(m8, 127, 255, cv2.THRESH_BINARY)
+
+    # Extract contours with hierarchy (RETR_CCOMP for holes)
+    contours, hierarchy = cv2.findContours(
+        binary, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE
+    )
+
+    if not contours:
+        return m8
+
+    # Smooth contours using B-spline (smooth_factor = 5, same as AutoCensor)
+    smoothed = [smooth_contour(c, smooth_factor=5.0) for c in contours]
+
+    # Supersample dimensions
+    ss_w, ss_h = w * ss, h * ss
+
+    # Scale contours to supersample resolution
+    scaled = []
+    for c in smoothed:
+        sc = c.reshape(-1, 2).astype(np.float64) * ss
+        sc = sc.reshape(-1, 1, 2).astype(np.int32)
+        scaled.append(sc)
+
+    # Draw on supersample canvas with anti-aliasing
+    canvas = np.zeros((ss_h, ss_w), dtype=np.uint8)
+
+    if hierarchy is not None and len(scaled) > 0:
+        h_arr = hierarchy[0]
+        for i, c in enumerate(scaled):
+            if len(c) < 3:
+                continue
+            # hierarchy: [next, prev, child, parent]
+            # parent == -1 means outer contour (fill white)
+            # parent != -1 means hole (fill black)
+            if h_arr[i][3] == -1:
+                cv2.drawContours(canvas, [c], -1, 255, cv2.FILLED, lineType=cv2.LINE_AA)
+            else:
+                cv2.drawContours(canvas, [c], -1, 0, cv2.FILLED, lineType=cv2.LINE_AA)
+    else:
+        for c in scaled:
+            if len(c) >= 3:
+                cv2.drawContours(canvas, [c], -1, 255, cv2.FILLED, lineType=cv2.LINE_AA)
+
+    # AutoCensor: draw 1px outline on top for smoother edges
+    for c in scaled:
+        if len(c) >= 3:
+            cv2.drawContours(canvas, [c], -1, 255, 1, lineType=cv2.LINE_AA)
+
+    # Downsample with INTER_AREA (smooth anti-aliased)
+    if ss > 1:
+        result_u8 = cv2.resize(canvas, (w, h), interpolation=cv2.INTER_AREA)
+    else:
+        result_u8 = canvas
+
+    result = result_u8.astype(np.float32) / 255.0
+
+    # Edge-band selective blur (AutoCensor algorithm)
+    if blur_sigma > 0:
+        # Convert to uint8 for morphology
+        m8_ds = (result * 255).astype(np.uint8)
+        _, bin_ds = cv2.threshold(m8_ds, 127, 255, cv2.THRESH_BINARY)
+
+        # Kernel size: odd number >= 3
+        k = max(3, int(blur_sigma * 2) | 1)
+        kern = np.ones((k, k), dtype=np.uint8)
+
+        # Create edge band: dilated & ~eroded
+        dilated = cv2.dilate(bin_ds, kern)
+        eroded = cv2.erode(bin_ds, kern)
+        edge_band = ((dilated > 0) & (eroded == 0)).astype(np.float32)
+
+        # Gaussian blur the entire result
+        blurred = gaussian_filter(result, sigma=blur_sigma)
+        blurred = np.clip(blurred, 0.0, 1.0)
+
+        # Blend: original where not edge, blurred where edge
+        result = result * (1.0 - edge_band) + blurred * edge_band
+
+    return (np.clip(result, 0.0, 1.0) * 255).astype(np.uint8)
+
+
+def refine_mask_autocensor_v2(
+    mask_np: np.ndarray,
+    target_size: tuple[int, int],
+    blur_sigma: float = 2.0,
+    supersample: int = 2,
+    brush_hardness: float = 0.5,
+) -> np.ndarray:
+    """Refine mask using AutoCensor Release GPU/CPU algorithm (newer, simpler).
+
+    Pipeline (reverse-engineered from AutoCensor_Release_GPU_CPU.exe):
+      1. Normalize mask to float32 (0-1)
+      2. Resize to target size if needed
+      3. Binary threshold at 0.5 -> core_mask
+      4. Calculate feather_px from brush_hardness and blur_sigma
+      5. Dilate + GaussianBlur for soft edges
+      6. Blend soft edges with core mask
+
+    This version is simpler but faster than v1 (no B-spline smoothing).
+
+    Args:
+        mask_np: Raw mask from SAM2 (0-1 float or 0-255 uint8)
+        target_size: (width, height) of output
+        blur_sigma: Sigma for edge blur (0 = no blur)
+        supersample: Supersampling factor (affects feather calculation)
+        brush_hardness: Edge hardness 0.0 (soft) to 1.0 (hard)
+
+    Returns:
+        Refined mask with smooth edges (0-255 uint8)
+    """
+    w, h = target_size
+    ss = max(1, supersample)
+
+    # Normalize to float32 0-1
+    m = mask_np.astype(np.float32)
+    mx = float(m.max()) if m.size > 0 else 0.0
+    if mx > 1.0:
+        m = m / 255.0
+
+    mh, mw = m.shape[:2]
+
+    # Resize to target if different
+    if mw != w or mh != h:
+        m = cv2.resize(m, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    # Core mask: binary threshold at 0.5
+    core_mask = (m > 0.5).astype(np.float32)
+
+    # Normalize brush_hardness to 0-1
+    hardness = float(np.clip(brush_hardness, 0.0, 1.0))
+
+    # Calculate feather pixels
+    feather_px = 0.0
+    if hardness < 0.999:
+        feather_px += (1.0 - hardness) * (6.0 + max(0, ss - 1))
+    if blur_sigma > 0:
+        feather_px += max(0.0, float(blur_sigma)) * 1.35
+
+    result = core_mask.copy()
+
+    # Apply soft edge if feather_px > 0
+    if feather_px > 0 and np.any(core_mask > 0):
+        # Binary for morphology
+        binary = (core_mask * 255).astype(np.uint8)
+
+        # Kernel size: odd number >= 3
+        k = max(3, int(round(feather_px * 2.0)) | 1)
+        kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+
+        # Dilate to expand
+        expanded = cv2.dilate(binary, kern, iterations=1)
+
+        # Gaussian blur sigma
+        sigma = max(0.6, feather_px * 0.55)
+
+        # GaussianBlur for soft edges
+        soft = cv2.GaussianBlur(
+            expanded.astype(np.float32) / 255.0,
+            (0, 0),
+            sigmaX=sigma,
+            sigmaY=sigma,
+        )
+
+        # Use soft where expanded, otherwise core
+        result = np.where(expanded > 0, soft, core_mask)
+
+    return (np.clip(result, 0.0, 1.0) * 255).astype(np.uint8)
+
+
+def refine_mask(
+    mask_np: np.ndarray,
+    target_size: tuple[int, int],
+    blur_sigma: float = 2.0,
+    supersample: int = 2,
+    algorithm: str = "v1",
+    brush_hardness: float = 0.5,
+) -> np.ndarray:
+    """Unified mask refinement with algorithm selection.
+
+    Args:
+        mask_np: Raw mask (0-1 float or 0-255 uint8)
+        target_size: (width, height) of output
+        blur_sigma: Sigma for edge blur
+        supersample: Supersampling factor
+        algorithm: "v1" (B-spline + supersample AA) or "v2" (dilate + blur)
+        brush_hardness: Edge hardness for v2 (0.0-1.0)
+
+    Returns:
+        Refined mask (0-255 uint8)
+    """
+    if algorithm == "v2":
+        return refine_mask_autocensor_v2(
+            mask_np, target_size, blur_sigma, supersample, brush_hardness
+        )
+    else:
+        return refine_mask_autocensor_style(
+            mask_np, target_size, blur_sigma, supersample
+        )
 
 
 class SAM2Refiner:
@@ -88,7 +395,12 @@ class SAM2Refiner:
             # Step 1: SAM2 pixel mask
             x1, y1, x2, y2 = det.bbox
             input_box = np.array([[x1, y1, x2, y2]])
+            # Add center point as foreground hint for better accuracy
+            center_point = np.array([[(x1 + x2) / 2, (y1 + y2) / 2]])
+            point_label = np.array([1])  # 1 = foreground
             masks, scores, _ = self._predictor.predict(
+                point_coords=center_point,
+                point_labels=point_label,
                 box=input_box,
                 multimask_output=True,
             )
@@ -99,8 +411,20 @@ class SAM2Refiner:
             # Step 2: Keep largest connected component
             raw_mask = self._keep_largest_component(raw_mask)
 
-            # Step 4: Clean mask ready
-            det.mask = raw_mask
+            # Step 2.5: Fill internal holes with morphological closing
+            # Genitalia is one connected body - no holes inside
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+            raw_mask = cv2.morphologyEx(raw_mask, cv2.MORPH_CLOSE, kernel)
+
+            # Step 3: AutoCensor-style refinement (supersample + contour smooth + AA)
+            refined_mask = refine_mask_autocensor_style(
+                raw_mask,
+                target_size=(w, h),
+                blur_sigma=2.0,
+                supersample=4,
+            )
+
+            det.mask = refined_mask
 
         logger.debug(f"Refined {len(detections)} masks (SAM2 + subtraction + distance gradient)")
         return detections
@@ -198,10 +522,11 @@ class SAM2Refiner:
         bbox_area: int,
         det_bbox: tuple[int, int, int, int] | None = None,
     ) -> int:
-        """Pick best mask: highest score among those contained within detection bbox.
+        """Pick best mask: highest score among those fully contained within detection bbox.
 
-        Rejects masks that extend far beyond the detection bounding box,
-        which indicates SAM2 grabbed unrelated regions.
+        Bbox is always larger than the actual target region.
+        SAM2 must segment WITHIN the bbox, not outside it.
+        Any mask extending beyond bbox is rejected (0% tolerance).
         """
         best_idx = -1
         best_score = -1.0
@@ -213,18 +538,16 @@ class SAM2Refiner:
 
             if det_bbox is not None:
                 bx1, by1, bx2, by2 = det_bbox
-                bw, bh = bx2 - bx1, by2 - by1
-                # How far does the mask extend beyond the detection bbox?
-                margin = max(bw, bh) * 0.3  # Allow 30% overflow
-                if (xs.min() < bx1 - margin or xs.max() > bx2 + margin or
-                        ys.min() < by1 - margin or ys.max() > by2 + margin):
-                    continue  # Mask extends too far beyond bbox
+                # Strict containment: mask must be fully within bbox (0% tolerance)
+                if (xs.min() < bx1 or xs.max() > bx2 or
+                        ys.min() < by1 or ys.max() > by2):
+                    continue  # Mask extends outside bbox - reject
 
             if s > best_score:
                 best_score = s
                 best_idx = i
 
-        # Fallback: pick smallest area
+        # Fallback: pick smallest area (least likely to overflow)
         if best_idx == -1:
             areas = [int(np.sum(m > 0.5)) for m in masks]
             best_idx = int(np.argmin(areas))

@@ -1,15 +1,12 @@
-"""NSFW region detection using imgutils (anime-optimized) + NudeNet (anus).
-
-Dual-detector strategy:
-  - detect_censors: penis, pussy (anime-trained, high accuracy)
-  - detect_with_nudenet: ANUS_EXPOSED (NudeNet has anus, detect_censors doesn't)
-"""
+"""NSFW detection using YOLO Segmentation (AutoCensor style)."""
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
+import cv2
 import numpy as np
 from PIL import Image
 
@@ -19,19 +16,124 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Detection:
     """A single detected NSFW region."""
-
     class_name: str
     confidence: float
-    bbox: tuple[int, int, int, int]  # x1, y1, x2, y2
-    mask: np.ndarray | None = None  # Pixel-level mask from SAM2
+    bbox: tuple[int, int, int, int]
+    mask: np.ndarray | None = None
 
 
+# AutoCensor LABEL_GROUPS
+LABEL_GROUPS = {
+    "anus": ['anus', 'anal', 'ass', 'asshole', 'exposed_anus', 'buttocks'],
+    "genital": ['penis', 'exposed_penis', 'genitalia', 'genitals', 'vulva',
+                'vagina', 'pussy', 'exposed_vulva', 'testicles', 'cunnus', 'female_genital'],
+    "breast": ['nipple', 'nipples', 'exposed_nipple', 'breast', 'exposed_breast']
+}
+
+
+class YOLOSegmentationDetector:
+    """YOLO Segmentation detector - AutoCensor style, outputs masks directly."""
+
+    def __init__(
+        self,
+        model_path: str = "models/yolo/ntd11_anime_nsfw_segm_v5-variant1.pt",
+        confidence_threshold: float = 0.25,
+        device: str = "cuda",
+        censor_anus: bool = True,
+        censor_genital: bool = True,
+        censor_breast: bool = False,
+    ):
+        self.model_path = Path(model_path)
+        self.confidence_threshold = confidence_threshold
+        self.device = device
+        self._model = None
+
+        # Build targets list (AutoCensor style)
+        self.targets = []
+        if censor_anus:
+            self.targets.extend(LABEL_GROUPS["anus"])
+        if censor_genital:
+            self.targets.extend(LABEL_GROUPS["genital"])
+        if censor_breast:
+            self.targets.extend(LABEL_GROUPS["breast"])
+
+    def _load_model(self):
+        if self._model is not None:
+            return
+        from ultralytics import YOLO
+        self._model = YOLO(str(self.model_path))
+        logger.info(f"YOLO Segmentation loaded: {self.model_path}")
+
+    def detect(self, image: Image.Image) -> list[Detection]:
+        """Detect NSFW regions - returns detections with masks (AutoCensor style)."""
+        self._load_model()
+
+        w, h = image.size
+
+        # AutoCensor: model.predict with retina_masks=True
+        # YOLO expects BGR (OpenCV style), not RGB
+        img_rgb = np.array(image)
+        img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+        results = self._model.predict(
+            img_bgr,
+            conf=self.confidence_threshold,
+            device=self.device,
+            imgsz=1280,
+            retina_masks=True,
+            verbose=False,
+        )
+
+        detections = []
+
+        for r in results:
+            if r.masks is None:
+                continue
+
+            # AutoCensor: zip(r.masks.data, r.boxes)
+            for m_tensor, b in zip(r.masks.data, r.boxes):
+                cls_name = self._model.names[int(b.cls[0])]
+
+                # AutoCensor: if model.names[int(b.cls[0])] in targets
+                if cls_name not in self.targets:
+                    continue
+
+                conf = float(b.conf[0])
+                x1, y1, x2, y2 = b.xyxy[0].cpu().numpy()
+                bbox = (int(x1), int(y1), int(x2), int(y2))
+
+                # AutoCensor: mask_raw = m_tensor.cpu().numpy()
+                mask_raw = m_tensor.cpu().numpy()
+
+                # Resize to image size if needed
+                if mask_raw.shape[0] != h or mask_raw.shape[1] != w:
+                    mask_raw = cv2.resize(mask_raw, (w, h), interpolation=cv2.INTER_LINEAR)
+
+                # Convert to uint8
+                mask_u8 = (mask_raw * 255).astype(np.uint8)
+
+                detections.append(Detection(
+                    class_name=cls_name,
+                    confidence=conf,
+                    bbox=bbox,
+                    mask=mask_u8,
+                ))
+
+        logger.debug(f"YOLO: {len(detections)} detections ({', '.join(d.class_name for d in detections)})")
+        return detections
+
+    def is_available(self) -> bool:
+        if not self.model_path.exists():
+            return False
+        try:
+            from ultralytics import YOLO
+            return True
+        except ImportError:
+            return False
+
+
+# Legacy fallback (imgutils + NudeNet)
 class CensorDetector:
-    """Combined detector: imgutils detect_censors + NudeNet for anus.
-
-    detect_censors labels: penis, pussy, nipple_f
-    nudenet labels: ANUS_EXPOSED, FEMALE_GENITALIA_EXPOSED, MALE_GENITALIA_EXPOSED, etc.
-    """
+    """Fallback detector using imgutils + NudeNet (bbox only, needs SAM2)."""
 
     def __init__(
         self,
@@ -39,135 +141,63 @@ class CensorDetector:
         anus_confidence_threshold: float = 0.2,
         bbox_expand_ratio: float = 0.15,
     ):
-        """
-        Args:
-            confidence_threshold: For detect_censors (penis/pussy)
-            anus_confidence_threshold: For NudeNet anus detection (lower = catch more)
-            bbox_expand_ratio: Expand pussy/anus bboxes by this ratio before SAM2
-        """
         self.confidence_threshold = confidence_threshold
         self.anus_confidence_threshold = anus_confidence_threshold
         self.bbox_expand_ratio = bbox_expand_ratio
 
     def detect(self, image: Image.Image) -> list[Detection]:
-        """Detect NSFW regions using dual detectors.
-
-        Returns combined detections for penis, pussy, and anus.
-        """
         detections = []
-
-        # Primary: detect_censors (anime-optimized)
         detections.extend(self._detect_censors(image))
-
-        # Supplement: NudeNet for anus
         detections.extend(self._detect_anus(image))
-
-        # Deduplicate overlapping detections
         detections = self._deduplicate(detections)
-
-        logger.debug(
-            f"Combined detection: {len(detections)} regions "
-            f"({', '.join(d.class_name for d in detections)})"
-        )
         return detections
 
     def _detect_censors(self, image: Image.Image) -> list[Detection]:
-        """Anime-optimized detection for penis and pussy."""
         from imgutils.detect.censor import detect_censors
-
-        results = detect_censors(
-            image,
-            conf_threshold=self.confidence_threshold,
-            iou_threshold=0.7,
-        )
-
+        results = detect_censors(image, conf_threshold=self.confidence_threshold, iou_threshold=0.7)
         target = {"penis", "pussy"}
         detections = []
         w, h = image.size
-
         for bbox, label, confidence in results:
             if label not in target:
                 continue
-
             x1, y1, x2, y2 = bbox
-
-            # Expand pussy bbox for better SAM2 coverage
             if label == "pussy":
-                x1, y1, x2, y2 = self._expand_bbox(
-                    x1, y1, x2, y2, w, h, self.bbox_expand_ratio
-                )
-
-            detections.append(
-                Detection(
-                    class_name=label,
-                    confidence=float(confidence),
-                    bbox=(int(x1), int(y1), int(x2), int(y2)),
-                )
-            )
-
+                x1, y1, x2, y2 = self._expand_bbox(x1, y1, x2, y2, w, h, self.bbox_expand_ratio)
+            detections.append(Detection(
+                class_name=label,
+                confidence=float(confidence),
+                bbox=(int(x1), int(y1), int(x2), int(y2)),
+            ))
         return detections
 
     def _detect_anus(self, image: Image.Image) -> list[Detection]:
-        """NudeNet detection specifically for anus."""
         from imgutils.detect.nudenet import detect_with_nudenet
-
-        results = detect_with_nudenet(
-            image,
-            topk=100,
-            iou_threshold=0.45,
-            score_threshold=self.anus_confidence_threshold,
-        )
-
+        results = detect_with_nudenet(image, topk=100, iou_threshold=0.45, score_threshold=self.anus_confidence_threshold)
         detections = []
         w, h = image.size
-
         for bbox, label, confidence in results:
             if label != "ANUS_EXPOSED":
                 continue
-
             x1, y1, x2, y2 = bbox
-            # Expand anus bbox for better SAM2 coverage
-            x1, y1, x2, y2 = self._expand_bbox(
-                x1, y1, x2, y2, w, h, self.bbox_expand_ratio
-            )
-
-            detections.append(
-                Detection(
-                    class_name="anus",
-                    confidence=float(confidence),
-                    bbox=(int(x1), int(y1), int(x2), int(y2)),
-                )
-            )
-
+            x1, y1, x2, y2 = self._expand_bbox(x1, y1, x2, y2, w, h, self.bbox_expand_ratio)
+            detections.append(Detection(
+                class_name="anus",
+                confidence=float(confidence),
+                bbox=(int(x1), int(y1), int(x2), int(y2)),
+            ))
         return detections
 
-    def _expand_bbox(
-        self,
-        x1: float, y1: float, x2: float, y2: float,
-        img_w: int, img_h: int,
-        ratio: float,
-    ) -> tuple[float, float, float, float]:
-        """Expand bbox by ratio to ensure SAM2 gets enough context."""
+    def _expand_bbox(self, x1, y1, x2, y2, img_w, img_h, ratio):
         bw, bh = x2 - x1, y2 - y1
         dx, dy = bw * ratio, bh * ratio
-        return (
-            max(0, x1 - dx),
-            max(0, y1 - dy),
-            min(img_w, x2 + dx),
-            min(img_h, y2 + dy),
-        )
+        return max(0, x1 - dx), max(0, y1 - dy), min(img_w, x2 + dx), min(img_h, y2 + dy)
 
-    def _deduplicate(
-        self, detections: list[Detection], iou_threshold: float = 0.5
-    ) -> list[Detection]:
-        """Remove overlapping detections (keep higher confidence)."""
+    def _deduplicate(self, detections, iou_threshold=0.5):
         if len(detections) <= 1:
             return detections
-
-        # Sort by confidence descending
         detections.sort(key=lambda d: d.confidence, reverse=True)
         keep = []
-
         for det in detections:
             overlaps = False
             for kept in keep:
@@ -176,14 +206,10 @@ class CensorDetector:
                     break
             if not overlaps:
                 keep.append(det)
-
         return keep
 
     @staticmethod
-    def _iou(
-        box1: tuple[int, int, int, int],
-        box2: tuple[int, int, int, int],
-    ) -> float:
+    def _iou(box1, box2):
         x1 = max(box1[0], box2[0])
         y1 = max(box1[1], box2[1])
         x2 = min(box1[2], box2[2])
@@ -194,10 +220,10 @@ class CensorDetector:
         union = area1 + area2 - inter
         return inter / union if union > 0 else 0.0
 
-    def is_available(self) -> bool:
+    def is_available(self):
         try:
-            from imgutils.detect.censor import detect_censors  # noqa: F401
-            from imgutils.detect.nudenet import detect_with_nudenet  # noqa: F401
+            from imgutils.detect.censor import detect_censors
+            from imgutils.detect.nudenet import detect_with_nudenet
             return True
         except ImportError:
             return False

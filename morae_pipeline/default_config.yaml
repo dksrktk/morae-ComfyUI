@@ -1,0 +1,30 @@
+comfyui:
+  host: "127.0.0.1"
+  port: 8188
+
+curation:
+  enabled: true
+  device: "cuda"
+
+  # Scorer weights
+  technical_weight: 0.5
+  aesthetic_weight: 0.3
+  face_weight: 0.2
+
+  # Grade thresholds (composite 0.0 ~ 1.0)
+  grade_a_min: 0.8
+  grade_b_min: 0.6
+  grade_c_min: 0.4
+
+  # Enable/disable scorers
+  technical_enabled: true
+  aesthetic_enabled: true
+  face_enabled: false         # Set to true + provide face_reference_path
+  # face_reference_path: "./input/reference_face.png"
+
+queue:
+  max_concurrent: 1
+  retry_on_failure: 1
+  timeout_seconds: 600
+
+output_dir: "./output/morae"

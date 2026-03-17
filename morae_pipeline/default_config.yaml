@@ -22,6 +22,25 @@ curation:
   face_enabled: false         # Set to true + provide face_reference_path
   # face_reference_path: "./input/reference_face.png"
 
+censorship:
+  enabled: false               # Set to true + provide yolo_model_path
+  device: "cuda"
+
+  # YOLO detector
+  yolo_model_path: "./models/nsfw_yolo.pt"
+  confidence_threshold: 0.3    # Low = aggressive (fewer misses, safer legally)
+  # target_classes:            # null = use defaults (genitalia, anus, breast)
+
+  # SAM2 precise segmentation (optional, bbox-only if disabled)
+  sam2_enabled: false
+  # sam2_model_path: "./models/sam2.pt"
+
+  # Filter method: gaussian_blur, pixelate, black_bar, white_bar
+  filter_method: "gaussian_blur"
+  blur_radius: 40
+  pixelate_factor: 10
+  mask_padding: 10
+
 queue:
   max_concurrent: 1
   retry_on_failure: 1

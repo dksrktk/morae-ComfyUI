@@ -47,6 +47,27 @@ class CurationConfig:
 
 
 @dataclass
+class CensorshipConfig:
+    enabled: bool = False  # Off by default, requires YOLO model
+    device: str = "cuda"
+
+    # YOLO detector settings
+    yolo_model_path: str = "./models/nsfw_yolo.pt"
+    confidence_threshold: float = 0.3  # Low threshold = aggressive detection (safer)
+    target_classes: Optional[list[str]] = None  # None = use defaults
+
+    # SAM2 precise segmentation (optional)
+    sam2_enabled: bool = False
+    sam2_model_path: Optional[str] = None
+
+    # Filter settings
+    filter_method: str = "gaussian_blur"  # gaussian_blur, pixelate, black_bar, white_bar
+    blur_radius: int = 40
+    pixelate_factor: int = 10
+    mask_padding: int = 10  # Extra pixels around detected region
+
+
+@dataclass
 class QueueConfig:
     max_concurrent: int = 1  # ComfyUI handles one at a time by default
     retry_on_failure: int = 1
@@ -57,6 +78,7 @@ class QueueConfig:
 class PipelineConfig:
     comfyui: ComfyUIConfig = field(default_factory=ComfyUIConfig)
     curation: CurationConfig = field(default_factory=CurationConfig)
+    censorship: CensorshipConfig = field(default_factory=CensorshipConfig)
     queue: QueueConfig = field(default_factory=QueueConfig)
     output_dir: str = "./output/morae"
 
@@ -70,6 +92,8 @@ class PipelineConfig:
             config.comfyui = ComfyUIConfig(**data["comfyui"])
         if "curation" in data:
             config.curation = CurationConfig(**data["curation"])
+        if "censorship" in data:
+            config.censorship = CensorshipConfig(**data["censorship"])
         if "queue" in data:
             config.queue = QueueConfig(**data["queue"])
         if "output_dir" in data:

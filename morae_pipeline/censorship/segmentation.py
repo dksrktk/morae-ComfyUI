@@ -92,7 +92,8 @@ class SAM2Refiner:
                 box=input_box,
                 multimask_output=True,
             )
-            best_idx = int(np.argmax(scores))
+            bbox_area = (x2 - x1) * (y2 - y1)
+            best_idx = self._pick_best_mask(masks, scores, bbox_area, det_bbox=(x1, y1, x2, y2))
             raw_mask = (masks[best_idx] * 255).astype(np.uint8)
 
             # Step 2: Keep largest connected component
@@ -189,6 +190,46 @@ class SAM2Refiner:
         mask[gradient_zone] = 255.0 * (1.0 - (dist[gradient_zone] - solid_ratio) / (1.0 - solid_ratio))
 
         return mask.astype(np.uint8)
+
+    @staticmethod
+    def _pick_best_mask(
+        masks: np.ndarray,
+        scores: np.ndarray,
+        bbox_area: int,
+        det_bbox: tuple[int, int, int, int] | None = None,
+    ) -> int:
+        """Pick best mask: highest score among those contained within detection bbox.
+
+        Rejects masks that extend far beyond the detection bounding box,
+        which indicates SAM2 grabbed unrelated regions.
+        """
+        best_idx = -1
+        best_score = -1.0
+
+        for i, (m, s) in enumerate(zip(masks, scores)):
+            ys, xs = np.where(m > 0.5)
+            if len(ys) == 0:
+                continue
+
+            if det_bbox is not None:
+                bx1, by1, bx2, by2 = det_bbox
+                bw, bh = bx2 - bx1, by2 - by1
+                # How far does the mask extend beyond the detection bbox?
+                margin = max(bw, bh) * 0.3  # Allow 30% overflow
+                if (xs.min() < bx1 - margin or xs.max() > bx2 + margin or
+                        ys.min() < by1 - margin or ys.max() > by2 + margin):
+                    continue  # Mask extends too far beyond bbox
+
+            if s > best_score:
+                best_score = s
+                best_idx = i
+
+        # Fallback: pick smallest area
+        if best_idx == -1:
+            areas = [int(np.sum(m > 0.5)) for m in masks]
+            best_idx = int(np.argmin(areas))
+
+        return best_idx
 
     @staticmethod
     def _keep_largest_component(mask: np.ndarray) -> np.ndarray:

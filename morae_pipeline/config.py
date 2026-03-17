@@ -87,23 +87,28 @@ class ControlNetConfig:
 
 @dataclass
 class CensorshipConfig:
-    enabled: bool = False  # Off by default, requires YOLO model
+    enabled: bool = False
     device: str = "cuda"
 
-    # YOLO detector settings
-    yolo_model_path: str = "./models/nsfw_yolo.pt"
-    confidence_threshold: float = 0.3  # Low threshold = aggressive detection (safer)
-    target_classes: Optional[list[str]] = None  # None = use defaults
+    # Detection (imgutils detect_censors + NudeNet anus)
+    confidence_threshold: float = 0.25
+    anus_confidence_threshold: float = 0.2  # Lower for anus (harder to detect)
+    bbox_expand_ratio: float = 0.15  # Expand bbox before SAM2 for better coverage
+    target_classes: Optional[list[str]] = None  # None = ["penis", "pussy", "anus"]
 
-    # SAM2 precise segmentation (optional)
-    sam2_enabled: bool = False
-    sam2_model_path: Optional[str] = None
+    # SAM2 pixel-precise segmentation
+    sam2_model_cfg: str = "configs/sam2.1/sam2.1_hiera_l.yaml"
+    sam2_checkpoint: str = "./models/sam2/sam2.1_hiera_large.pt"
+
+    # Mask refinement (dilate = expand outward for full coverage)
+    erode_pixels: int = 0
+    dilate_pixels: int = 3
+    blur_boundary: int = 3
 
     # Filter settings
-    filter_method: str = "gaussian_blur"  # gaussian_blur, pixelate, black_bar, white_bar
+    filter_method: str = "white_bar"  # white_bar, gaussian_blur, pixelate, black_bar
     blur_radius: int = 40
     pixelate_factor: int = 10
-    mask_padding: int = 10  # Extra pixels around detected region
 
 
 @dataclass

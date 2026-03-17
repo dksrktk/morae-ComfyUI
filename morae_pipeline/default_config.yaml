@@ -58,23 +58,26 @@ controlnet:
   variation_strength: 0.05
 
 censorship:
-  enabled: false               # Set to true + provide yolo_model_path
+  enabled: false               # Set to true to enable post-processing censorship
   device: "cuda"
 
-  # YOLO detector
-  yolo_model_path: "./models/nsfw_yolo.pt"
-  confidence_threshold: 0.3    # Low = aggressive (fewer misses, safer legally)
-  # target_classes:            # null = use defaults (genitalia, anus, breast)
+  # Detection (imgutils detect_censors — anime-optimized)
+  confidence_threshold: 0.25   # Low = aggressive (fewer misses, safer legally)
+  # target_classes:            # null = ["penis", "pussy"]
 
-  # SAM2 precise segmentation (optional, bbox-only if disabled)
-  sam2_enabled: false
-  # sam2_model_path: "./models/sam2.pt"
+  # SAM2 pixel-precise segmentation
+  sam2_model_cfg: "configs/sam2.1/sam2.1_hiera_l.yaml"
+  sam2_checkpoint: "./models/sam2/sam2.1_hiera_large.pt"
 
-  # Filter method: gaussian_blur, pixelate, black_bar, white_bar
-  filter_method: "gaussian_blur"
+  # Mask refinement (erode = shrink inward to minimize censored area)
+  erode_pixels: 2
+  dilate_pixels: 0
+  blur_boundary: 3
+
+  # Filter: white_bar (정밀 흰색), gaussian_blur, pixelate, black_bar
+  filter_method: "white_bar"
   blur_radius: 40
   pixelate_factor: 10
-  mask_padding: 10
 
 queue:
   max_concurrent: 1

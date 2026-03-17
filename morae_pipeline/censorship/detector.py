@@ -15,8 +15,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_TARGET_CLASSES = [
     "genitalia_exposed",
     "anus_exposed",
-    "female_breast_exposed",
-    "male_breast_exposed",
 ]
 
 

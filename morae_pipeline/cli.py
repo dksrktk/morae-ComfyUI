@@ -90,6 +90,71 @@ def cmd_curate(args) -> None:
     asyncio.run(runner.run_curation(session_dir))
 
 
+def cmd_autopilot(args) -> None:
+    """자연어 → 프롬프트 → 배치 생성 → 큐레이션 → 검열 전체 자동화."""
+    config = _load_config(args)
+
+    # CLI에서 API 키 오버라이드
+    if args.api_key:
+        config.generation.deepseek_api_key = args.api_key
+
+    # 트리거 워드 오버라이드
+    if args.trigger:
+        config.generation.trigger_word = args.trigger
+
+    # Hires 설정
+    if args.hires:
+        config.generation.hires = True
+
+    runner = PipelineRunner(config)
+    asyncio.run(
+        runner.autopilot(
+            session_name=args.session,
+            description=args.prompt,
+            count=args.count,
+            curate=not args.no_curate,
+            censor=not args.no_censor,
+            seed_start=args.seed_start,
+        )
+    )
+
+
+def cmd_character_batch(args) -> None:
+    """캐릭터 + 포즈 기반 배치 생성."""
+    config = _load_config(args)
+
+    # CLI에서 API 키 오버라이드
+    if args.api_key:
+        config.generation.deepseek_api_key = args.api_key
+
+    # 트리거 워드 오버라이드
+    if args.trigger:
+        config.generation.trigger_word = args.trigger
+
+    # 캐릭터 디렉토리 오버라이드
+    if args.characters_dir:
+        config.character.characters_dir = args.characters_dir
+
+    # 캐릭터 목록 파싱
+    character_names = [c.strip() for c in args.characters.split(",")]
+
+    runner = PipelineRunner(config)
+    asyncio.run(
+        runner.character_batch(
+            session_name=args.session,
+            character_names=character_names,
+            pose_list_path=args.pose_list,
+            auto_poses=args.auto_poses or 0,
+            pose_style=args.pose_style or "일반",
+            images_per_pose=args.images_per_pose,
+            curate=not args.no_curate,
+            censor=not args.no_censor,
+            seed_start=args.seed_start,
+            use_lora=args.use_lora,
+        )
+    )
+
+
 def cmd_status(args) -> None:
     """Show session status."""
     import json
@@ -173,6 +238,36 @@ def main() -> None:
     st = sub.add_parser("status", help="Show session status")
     st.add_argument("--session", "-s", help="Specific session (omit for all)")
     st.set_defaults(func=cmd_status)
+
+    # autopilot
+    ap = sub.add_parser("autopilot", help="자연어 → 프롬프트 → 배치 생성 → 큐레이션 → 검열 전체 자동화")
+    ap.add_argument("--session", "-s", required=True, help="세션 이름")
+    ap.add_argument("--prompt", "-p", required=True, help="자연어 이미지 설명")
+    ap.add_argument("--count", "-n", type=int, default=10, help="생성할 이미지 개수 (기본: 10)")
+    ap.add_argument("--seed-start", type=int, default=1, help="시작 시드 (기본: 1)")
+    ap.add_argument("--api-key", help="DeepSeek API 키 (또는 config에 설정)")
+    ap.add_argument("--trigger", "-t", help="LoRA 트리거 워드 (기본: wakitan)")
+    ap.add_argument("--hires", action="store_true", help="Hires Fix 사용")
+    ap.add_argument("--no-curate", action="store_true", help="큐레이션 건너뛰기")
+    ap.add_argument("--no-censor", action="store_true", help="검열 건너뛰기")
+    ap.set_defaults(func=cmd_autopilot)
+
+    # character-batch
+    cb = sub.add_parser("character-batch", help="캐릭터 + 포즈 기반 배치 생성")
+    cb.add_argument("--session", "-s", required=True, help="세션 이름")
+    cb.add_argument("--characters", "-c", required=True, help="캐릭터 이름 (쉼표 구분)")
+    cb.add_argument("--characters-dir", help="캐릭터 디렉토리 (또는 config에 설정)")
+    cb.add_argument("--pose-list", "-p", help="포즈 목록 YAML 경로 (모드 A)")
+    cb.add_argument("--auto-poses", type=int, help="LLM 자동 생성 포즈 개수 (모드 B)")
+    cb.add_argument("--pose-style", default="일반", help="자동 생성 시 스타일 (기본: 일반)")
+    cb.add_argument("--images-per-pose", "-n", type=int, default=1, help="포즈당 이미지 개수 (기본: 1)")
+    cb.add_argument("--seed-start", type=int, default=1, help="시작 시드 (기본: 1)")
+    cb.add_argument("--api-key", help="DeepSeek API 키")
+    cb.add_argument("--trigger", "-t", help="LoRA 트리거 워드")
+    cb.add_argument("--use-lora", action="store_true", help="캐릭터 LoRA 사용 (명시적 요청 시에만)")
+    cb.add_argument("--no-curate", action="store_true", help="큐레이션 건너뛰기")
+    cb.add_argument("--no-censor", action="store_true", help="검열 건너뛰기")
+    cb.set_defaults(func=cmd_character_batch)
 
     args = parser.parse_args()
     setup_logging(args.verbose)

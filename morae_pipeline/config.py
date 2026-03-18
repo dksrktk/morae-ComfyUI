@@ -86,6 +86,36 @@ class ControlNetConfig:
 
 
 @dataclass
+class GenerationConfig:
+    """이미지 생성 설정."""
+    enabled: bool = True
+
+    # Model
+    model: str = "waiIllustriousSDXL_v160.safetensors"
+    width: int = 832
+    height: int = 1216
+    steps: int = 25
+    cfg: float = 7.0
+
+    # LoRA (None = 사용 안함, config.yaml에서 명시적으로 설정)
+    lora1: Optional[str] = None
+    lora1_strength: float = 1.0
+    lora2: Optional[str] = None
+    lora2_strength: float = 0.8
+    trigger_word: str = ""
+
+    # Hires Fix
+    hires: bool = False
+    hires_steps: int = 40
+    hires_denoise: float = 0.4
+    upscaler: str = "4x-UltraSharp.pth"
+
+    # DeepSeek API
+    deepseek_api_key: str = ""
+    deepseek_api_url: str = "https://api.deepseek.com/v1/chat/completions"
+
+
+@dataclass
 class CensorshipConfig:
     enabled: bool = False
     device: str = "cuda"
@@ -121,6 +151,7 @@ class QueueConfig:
 @dataclass
 class PipelineConfig:
     comfyui: ComfyUIConfig = field(default_factory=ComfyUIConfig)
+    generation: GenerationConfig = field(default_factory=GenerationConfig)
     curation: CurationConfig = field(default_factory=CurationConfig)
     character: CharacterConfig = field(default_factory=CharacterConfig)
     controlnet: ControlNetConfig = field(default_factory=ControlNetConfig)
@@ -136,6 +167,8 @@ class PipelineConfig:
         config = cls()
         if "comfyui" in data:
             config.comfyui = ComfyUIConfig(**data["comfyui"])
+        if "generation" in data:
+            config.generation = GenerationConfig(**data["generation"])
         if "curation" in data:
             config.curation = CurationConfig(**data["curation"])
         if "character" in data:

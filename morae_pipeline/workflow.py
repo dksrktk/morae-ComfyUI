@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import copy
 import json
+import random
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .config import GenerationConfig
 
 
 class WorkflowTemplate:
@@ -121,3 +125,216 @@ class WorkflowTemplate:
         if "positive" not in self._node_map:
             warnings.append("No positive prompt node detected")
         return warnings
+
+
+class WorkflowBuilder:
+    """동적 ComfyUI 워크플로우 빌더 (generate.py 기반)."""
+
+    def __init__(self, config: "GenerationConfig"):
+        self.config = config
+
+    def build(
+        self,
+        positive_prompt: str,
+        negative_prompt: str,
+        seed: Optional[int] = None,
+        filename_prefix: str = "gen",
+        character_loras: Optional[list[dict]] = None,
+    ) -> tuple[dict, int]:
+        """ComfyUI API 워크플로우 생성.
+
+        Args:
+            positive_prompt: 포지티브 프롬프트
+            negative_prompt: 네거티브 프롬프트
+            seed: 시드 (None이면 랜덤)
+            filename_prefix: 파일명 프리픽스
+            character_loras: 캐릭터 LoRA 목록 [{"path": ..., "weight": ..., "trigger_word": ...}]
+
+        Returns:
+            (workflow_dict, seed)
+        """
+        if seed is None:
+            seed = random.randint(1, 2**32 - 1)
+
+        cfg = self.config
+        workflow = {}
+
+        # 1. Checkpoint Loader
+        workflow["1"] = {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {"ckpt_name": cfg.model},
+        }
+
+        # 2. CLIP Set Last Layer
+        workflow["2"] = {
+            "class_type": "CLIPSetLastLayer",
+            "inputs": {"clip": ["1", 1], "stop_at_clip_layer": -2},
+        }
+
+        current_model = ["1", 0]
+        current_clip = ["2", 0]
+        next_node_id = 15
+
+        # 캐릭터 LoRA (우선 적용)
+        if character_loras:
+            for i, lora in enumerate(character_loras):
+                node_id = str(next_node_id + i)
+                workflow[node_id] = {
+                    "class_type": "LoraLoader",
+                    "inputs": {
+                        "model": current_model,
+                        "clip": current_clip,
+                        "lora_name": lora["path"],
+                        "strength_model": lora.get("weight", 0.8),
+                        "strength_clip": lora.get("clip_weight", lora.get("weight", 0.8)),
+                    },
+                }
+                current_model = [node_id, 0]
+                current_clip = [node_id, 1]
+            next_node_id += len(character_loras)
+
+        # 15. LoRA 1 (config 기본 LoRA)
+        if cfg.lora1:
+            workflow["15"] = {
+                "class_type": "LoraLoader",
+                "inputs": {
+                    "model": current_model,
+                    "clip": current_clip,
+                    "lora_name": cfg.lora1,
+                    "strength_model": cfg.lora1_strength,
+                    "strength_clip": cfg.lora1_strength,
+                },
+            }
+            current_model = ["15", 0]
+            current_clip = ["15", 1]
+
+        # 16. LoRA 2
+        if cfg.lora2:
+            workflow["16"] = {
+                "class_type": "LoraLoader",
+                "inputs": {
+                    "model": current_model,
+                    "clip": current_clip,
+                    "lora_name": cfg.lora2,
+                    "strength_model": cfg.lora2_strength,
+                    "strength_clip": cfg.lora2_strength,
+                },
+            }
+            current_model = ["16", 0]
+            current_clip = ["16", 1]
+
+        # 3. Positive CLIP Text Encode
+        workflow["3"] = {
+            "class_type": "CLIPTextEncode",
+            "inputs": {"clip": current_clip, "text": positive_prompt},
+        }
+
+        # 4. Negative CLIP Text Encode
+        workflow["4"] = {
+            "class_type": "CLIPTextEncode",
+            "inputs": {"clip": current_clip, "text": negative_prompt},
+        }
+
+        # 6. Empty Latent Image
+        workflow["6"] = {
+            "class_type": "EmptyLatentImage",
+            "inputs": {"width": cfg.width, "height": cfg.height, "batch_size": 1},
+        }
+
+        # 5. KSampler (1차)
+        workflow["5"] = {
+            "class_type": "KSampler",
+            "inputs": {
+                "model": current_model,
+                "positive": ["3", 0],
+                "negative": ["4", 0],
+                "latent_image": ["6", 0],
+                "seed": seed,
+                "steps": cfg.steps,
+                "cfg": cfg.cfg,
+                "sampler_name": "euler",
+                "scheduler": "normal",
+                "denoise": 1.0,
+            },
+        }
+
+        if cfg.hires:
+            # Hires Fix Pipeline
+            workflow["9"] = {
+                "class_type": "VAEDecodeTiled",
+                "inputs": {
+                    "samples": ["5", 0],
+                    "vae": ["1", 2],
+                    "tile_size": 512,
+                    "overlap": 64,
+                    "temporal_size": 64,
+                    "temporal_overlap": 8,
+                },
+            }
+
+            workflow["10"] = {
+                "class_type": "UpscaleModelLoader",
+                "inputs": {"model_name": cfg.upscaler},
+            }
+
+            workflow["11"] = {
+                "class_type": "ImageUpscaleWithModel",
+                "inputs": {"upscale_model": ["10", 0], "image": ["9", 0]},
+            }
+
+            workflow["12"] = {
+                "class_type": "ImageScale",
+                "inputs": {
+                    "image": ["11", 0],
+                    "upscale_method": "nearest-exact",
+                    "width": cfg.width,
+                    "height": cfg.height,
+                    "crop": "disabled",
+                },
+            }
+
+            workflow["13"] = {
+                "class_type": "VAEEncodeTiled",
+                "inputs": {
+                    "pixels": ["12", 0],
+                    "vae": ["1", 2],
+                    "tile_size": 512,
+                    "overlap": 64,
+                    "temporal_size": 64,
+                    "temporal_overlap": 8,
+                },
+            }
+
+            workflow["14"] = {
+                "class_type": "KSampler",
+                "inputs": {
+                    "model": current_model,
+                    "positive": ["3", 0],
+                    "negative": ["4", 0],
+                    "latent_image": ["13", 0],
+                    "seed": seed,
+                    "steps": cfg.hires_steps,
+                    "cfg": cfg.cfg,
+                    "sampler_name": "euler",
+                    "scheduler": "normal",
+                    "denoise": cfg.hires_denoise,
+                },
+            }
+
+            workflow["7"] = {
+                "class_type": "VAEDecode",
+                "inputs": {"samples": ["14", 0], "vae": ["1", 2]},
+            }
+        else:
+            workflow["7"] = {
+                "class_type": "VAEDecode",
+                "inputs": {"samples": ["5", 0], "vae": ["1", 2]},
+            }
+
+        # 8. Save Image
+        workflow["8"] = {
+            "class_type": "SaveImage",
+            "inputs": {"images": ["7", 0], "filename_prefix": filename_prefix},
+        }
+
+        return workflow, seed

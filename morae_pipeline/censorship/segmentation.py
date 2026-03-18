@@ -22,6 +22,122 @@ from .detector import Detection
 logger = logging.getLogger(__name__)
 
 
+def is_mask_fragmented(mask: np.ndarray, threshold: float = 0.5) -> bool:
+    """Check if mask is fragmented (split by fingers/obstructions).
+
+    Uses convexity ratio: mask_area / convex_hull_area
+    - Complete mask: ~0.8-1.0 (mask ≈ hull)
+    - Fragmented mask: < 0.5 (mask << hull, gaps in the middle)
+
+    Args:
+        mask: Input mask (0-255 uint8)
+        threshold: Convexity ratio threshold (default 0.5)
+
+    Returns:
+        True if fragmented (needs SAM2 supplementation)
+    """
+    if mask is None:
+        return False
+
+    # Ensure binary
+    if mask.dtype != np.uint8:
+        mask = (mask * 255).astype(np.uint8) if mask.max() <= 1 else mask.astype(np.uint8)
+
+    _, binary = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
+
+    mask_area = np.sum(binary > 0)
+    if mask_area == 0:
+        return False
+
+    # Compute convex hull
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return False
+
+    all_points = np.vstack(contours)
+    hull = cv2.convexHull(all_points)
+    hull_area = cv2.contourArea(hull)
+
+    if hull_area == 0:
+        return False
+
+    convexity_ratio = mask_area / hull_area
+    is_fragmented = convexity_ratio < threshold
+
+    if is_fragmented:
+        logger.debug(f"Fragmented mask detected: convexity={convexity_ratio:.2f} < {threshold}")
+
+    return is_fragmented
+
+
+def get_mask_center(mask: np.ndarray) -> tuple[float, float] | None:
+    """Get center of mass of mask.
+
+    Args:
+        mask: Input mask (0-255 uint8)
+
+    Returns:
+        (x, y) center coordinates, or None if mask is empty
+    """
+    if mask is None:
+        return None
+
+    ys, xs = np.where(mask > 127)
+    if len(xs) == 0:
+        return None
+
+    return float(np.mean(xs)), float(np.mean(ys))
+
+
+def unify_mask_fragments(mask: np.ndarray, use_convex_hull: bool = True) -> np.ndarray:
+    """Unify fragmented mask pieces into a single coherent region.
+
+    Handles cases where fingers/objects split a body part into multiple fragments.
+
+    Pipeline:
+      1. Morphological Closing - fill small holes from obstructions
+      2. Convex Hull - wrap all fragments into one convex polygon
+
+    Args:
+        mask: Input mask (0-255 uint8)
+        use_convex_hull: If True, apply convex hull to merge fragments
+
+    Returns:
+        Unified mask (0-255 uint8)
+    """
+    if mask is None or np.sum(mask > 127) == 0:
+        return mask
+
+    # Ensure uint8
+    if mask.dtype != np.uint8:
+        mask = (mask * 255).astype(np.uint8) if mask.max() <= 1 else mask.astype(np.uint8)
+
+    # Step 1: Morphological Closing (dilate then erode) - fills small holes
+    kernel_size = 25  # Large kernel to bridge gaps from fingers/obstructions
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+    closed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+    if not use_convex_hull:
+        return closed
+
+    # Step 2: Convex Hull - wrap all fragments into one polygon
+    _, binary = cv2.threshold(closed, 127, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if not contours:
+        return closed
+
+    # Combine all contour points and compute convex hull
+    all_points = np.vstack(contours)
+    hull = cv2.convexHull(all_points)
+
+    # Draw filled convex hull
+    result = np.zeros_like(mask)
+    cv2.drawContours(result, [hull], -1, 255, cv2.FILLED)
+
+    return result
+
+
 def smooth_contour(cnt: np.ndarray, smooth_factor: float = 2.0) -> np.ndarray:
     """Smooth contour points using B-spline interpolation (AutoCensor algorithm).
 
@@ -564,6 +680,50 @@ class SAM2Refiner:
         clean = np.zeros_like(mask)
         clean[labels == largest_label] = 255
         return clean
+
+    def supplement(self, image: Image.Image, det: Detection) -> Detection:
+        """Supplement a fragmented YOLO mask with SAM2.
+
+        When YOLO mask is split by fingers/obstructions, SAM2 can produce
+        a continuous mask using the bbox and mask center as prompts.
+
+        Args:
+            image: Original PIL Image (RGB)
+            det: Detection with fragmented mask
+
+        Returns:
+            Detection with SAM2-refined continuous mask
+        """
+        self._load_model()
+
+        img_array = np.array(image)
+        self._predictor.set_image(img_array)
+        h, w = img_array.shape[:2]
+
+        # Use YOLO mask center (more accurate than bbox center)
+        center = get_mask_center(det.mask)
+        if center is None:
+            center = ((det.bbox[0] + det.bbox[2]) / 2, (det.bbox[1] + det.bbox[3]) / 2)
+
+        center_point = np.array([[center[0], center[1]]])
+        point_label = np.array([1])  # foreground
+        input_box = np.array([[det.bbox[0], det.bbox[1], det.bbox[2], det.bbox[3]]])
+
+        masks, scores, _ = self._predictor.predict(
+            point_coords=center_point,
+            point_labels=point_label,
+            box=input_box,
+            multimask_output=True,
+        )
+
+        # Reuse existing mask selection logic
+        bbox_area = (det.bbox[2] - det.bbox[0]) * (det.bbox[3] - det.bbox[1])
+        best_idx = self._pick_best_mask(masks, scores, bbox_area, det_bbox=det.bbox)
+
+        det.mask = (masks[best_idx] * 255).astype(np.uint8)
+        logger.debug(f"SAM2 supplemented fragmented mask: {det.class_name}")
+
+        return det
 
     def is_available(self) -> bool:
         try:

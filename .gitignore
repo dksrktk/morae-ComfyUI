@@ -26,3 +26,11 @@ filtered-openapi.yaml
 uv.lock
 .omc/
 /tests/AutoCensor/
+/tests/164*/
+*.zip
+*.zip:Zone.Identifier
+output_*/
+debug_*.png
+diff_*.png
+*_mask_*.png
+*_missed.png

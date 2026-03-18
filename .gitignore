@@ -4,6 +4,9 @@ __pycache__/
 /input/
 !/input/example.png
 /models/
+!/models/yolo/
+/models/yolo/*
+!/models/yolo/ntd11_anime_nsfw_segm_v5-variant1.pt
 /temp/
 /custom_nodes/
 !custom_nodes/example_node.py.example

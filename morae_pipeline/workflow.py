@@ -130,8 +130,9 @@ class WorkflowTemplate:
 class WorkflowBuilder:
     """동적 ComfyUI 워크플로우 빌더 (generate.py 기반)."""
 
-    def __init__(self, config: "GenerationConfig"):
+    def __init__(self, config: "GenerationConfig", ipadapter_config: Optional[Any] = None):
         self.config = config
+        self.ipadapter_config = ipadapter_config
 
     def build(
         self,
@@ -140,6 +141,7 @@ class WorkflowBuilder:
         seed: Optional[int] = None,
         filename_prefix: str = "gen",
         character_loras: Optional[list[dict]] = None,
+        reference_image: Optional[str] = None,
     ) -> tuple[dict, int]:
         """ComfyUI API 워크플로우 생성.
 
@@ -149,6 +151,7 @@ class WorkflowBuilder:
             seed: 시드 (None이면 랜덤)
             filename_prefix: 파일명 프리픽스
             character_loras: 캐릭터 LoRA 목록 [{"path": ..., "weight": ..., "trigger_word": ...}]
+            reference_image: IP-Adapter용 레퍼런스 이미지 경로
 
         Returns:
             (workflow_dict, seed)
@@ -222,6 +225,46 @@ class WorkflowBuilder:
             }
             current_model = ["16", 0]
             current_clip = ["16", 1]
+
+        # IP-Adapter (레퍼런스 이미지 스타일 전달)
+        if reference_image and self.ipadapter_config:
+            ipa_cfg = self.ipadapter_config
+
+            # 50. Load Image (reference)
+            workflow["50"] = {
+                "class_type": "LoadImage",
+                "inputs": {"image": reference_image},
+            }
+
+            # 51. Load CLIP Vision
+            workflow["51"] = {
+                "class_type": "CLIPVisionLoader",
+                "inputs": {"clip_name": ipa_cfg.clip_vision_model},
+            }
+
+            # 52. IPAdapter Model Loader
+            workflow["52"] = {
+                "class_type": "IPAdapterModelLoader",
+                "inputs": {"ipadapter_file": ipa_cfg.model},
+            }
+
+            # 53. IPAdapter Advanced
+            workflow["53"] = {
+                "class_type": "IPAdapterAdvanced",
+                "inputs": {
+                    "model": current_model,
+                    "ipadapter": ["52", 0],
+                    "clip_vision": ["51", 0],
+                    "image": ["50", 0],
+                    "weight": ipa_cfg.weight,
+                    "weight_type": ipa_cfg.weight_type,
+                    "start_at": ipa_cfg.start_at,
+                    "end_at": ipa_cfg.end_at,
+                    "combine_embeds": "concat",
+                    "embeds_scaling": "V only",
+                },
+            }
+            current_model = ["53", 0]
 
         # 3. Positive CLIP Text Encode
         workflow["3"] = {

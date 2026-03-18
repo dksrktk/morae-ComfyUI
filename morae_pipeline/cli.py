@@ -151,6 +151,7 @@ def cmd_character_batch(args) -> None:
             censor=not args.no_censor,
             seed_start=args.seed_start,
             use_lora=args.use_lora,
+            use_reference=args.use_reference,
         )
     )
 
@@ -265,6 +266,7 @@ def main() -> None:
     cb.add_argument("--api-key", help="DeepSeek API 키")
     cb.add_argument("--trigger", "-t", help="LoRA 트리거 워드")
     cb.add_argument("--use-lora", action="store_true", help="캐릭터 LoRA 사용 (명시적 요청 시에만)")
+    cb.add_argument("--use-reference", action="store_true", help="IP-Adapter 레퍼런스 이미지 사용")
     cb.add_argument("--no-curate", action="store_true", help="큐레이션 건너뛰기")
     cb.add_argument("--no-censor", action="store_true", help="검열 건너뛰기")
     cb.set_defaults(func=cmd_character_batch)

@@ -234,7 +234,7 @@ class PipelineRunner:
         logger.info(f"[Prompt] {generated.positive[:100]}...")
 
         # Step 2: 워크플로우 빌더
-        builder = WorkflowBuilder(gen_config)
+        builder = WorkflowBuilder(gen_config, self.config.ipadapter)
 
         # Step 3: 배치 생성
         start = time.time()
@@ -292,6 +292,7 @@ class PipelineRunner:
         censor: bool = True,
         seed_start: int = 1,
         use_lora: bool = False,
+        use_reference: bool = False,
     ) -> Path:
         """캐릭터 + 포즈 기반 배치 생성.
 
@@ -305,6 +306,8 @@ class PipelineRunner:
             curate: 큐레이션 실행 여부
             censor: 검열 실행 여부
             seed_start: 시작 시드
+            use_lora: 캐릭터 LoRA 사용 여부
+            use_reference: IP-Adapter 레퍼런스 이미지 사용 여부
 
         Returns:
             세션 디렉토리 경로
@@ -357,7 +360,7 @@ class PipelineRunner:
         )
 
         # 워크플로우 빌더
-        builder = WorkflowBuilder(gen_config)
+        builder = WorkflowBuilder(gen_config, self.config.ipadapter)
 
         # 배치 생성
         start = time.time()
@@ -376,6 +379,28 @@ class PipelineRunner:
                     char_loras = [lora.to_dict() for lora in char.loras]
                     logger.info(f"  [LoRA] {len(char_loras)}개 적용: {[l['path'] for l in char_loras]}")
 
+                # IP-Adapter 레퍼런스 이미지 준비
+                # ComfyUI LoadImage는 API로 업로드된 이미지만 인식
+                ref_image = None
+                if use_reference and char.primary_reference:
+                    src_path = Path(char.primary_reference)
+                    if src_path.exists():
+                        dest_name = f"{char.name}_ref{src_path.suffix}"
+                        # ComfyUI API로 이미지 업로드
+                        import requests
+                        with open(src_path, "rb") as f:
+                            files = {"image": (dest_name, f, "image/png")}
+                            data = {"overwrite": "true"}
+                            resp = requests.post(
+                                f"{self.config.comfyui.http_url}/upload/image",
+                                files=files, data=data, timeout=30
+                            )
+                            if resp.status_code == 200:
+                                ref_image = dest_name
+                                logger.info(f"  [IP-Adapter] 레퍼런스 업로드: {ref_image}")
+                            else:
+                                logger.warning(f"  [IP-Adapter] 업로드 실패: {resp.status_code}")
+
                 for pose in pose_list:
                     # LLM으로 캐릭터+포즈 프롬프트 생성
                     generated = prompt_gen.generate_for_character_pose(
@@ -393,6 +418,7 @@ class PipelineRunner:
                             seed=seed,
                             filename_prefix=filename_prefix,
                             character_loras=char_loras,
+                            reference_image=ref_image,
                         )
                         seed += 1
 

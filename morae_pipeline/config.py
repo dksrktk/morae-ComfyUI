@@ -12,6 +12,8 @@ from typing import Optional
 class ComfyUIConfig:
     host: str = "127.0.0.1"
     port: int = 8188
+    # ComfyUI input 폴더 경로 (IP-Adapter 레퍼런스 이미지 복사용)
+    input_dir: str = "/mnt/c/ComfyUI_windows_portable/ComfyUI/input"
 
     @property
     def http_url(self) -> str:
@@ -52,13 +54,25 @@ class CharacterConfig:
     characters_dir: Optional[str] = None  # e.g. "./input/characters"
     default_character: Optional[str] = None  # Character name to use by default
 
-    # IP-Adapter settings
-    ip_adapter_model: str = "ip-adapter-faceid-plusv2_sd15.bin"
-    clip_vision_model: str = "model.safetensors"  # CLIP-ViT-H-14
-
     # Tag injection
     prepend_tags: bool = True  # Prepend character tags to positive prompt
     append_negative_tags: bool = True  # Append character negative tags
+
+
+@dataclass
+class IPAdapterConfig:
+    enabled: bool = False
+    # IP-Adapter model (SDXL용)
+    model: str = "ip-adapter_sdxl_vit-h.safetensors"
+    # CLIP Vision model
+    clip_vision_model: str = "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    # Weight (0.0-1.0, 높을수록 reference 영향 큼)
+    weight: float = 0.7
+    # Weight type: linear, ease in, ease out, style transfer (SDXL)
+    weight_type: str = "linear"
+    # Start/End (언제부터 언제까지 적용)
+    start_at: float = 0.0
+    end_at: float = 1.0
 
 
 @dataclass
@@ -155,6 +169,7 @@ class PipelineConfig:
     curation: CurationConfig = field(default_factory=CurationConfig)
     character: CharacterConfig = field(default_factory=CharacterConfig)
     controlnet: ControlNetConfig = field(default_factory=ControlNetConfig)
+    ipadapter: IPAdapterConfig = field(default_factory=IPAdapterConfig)
     censorship: CensorshipConfig = field(default_factory=CensorshipConfig)
     queue: QueueConfig = field(default_factory=QueueConfig)
     output_dir: str = "./output/morae"
@@ -175,6 +190,8 @@ class PipelineConfig:
             config.character = CharacterConfig(**data["character"])
         if "controlnet" in data:
             config.controlnet = ControlNetConfig(**data["controlnet"])
+        if "ipadapter" in data:
+            config.ipadapter = IPAdapterConfig(**data["ipadapter"])
         if "censorship" in data:
             config.censorship = CensorshipConfig(**data["censorship"])
         if "queue" in data:

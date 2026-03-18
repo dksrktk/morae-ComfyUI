@@ -20,11 +20,20 @@ class OutputManager:
         self.grades_dir = session_dir / "graded"
 
     def organize(self, scores: list[ImageScore]) -> dict[str, int]:
-        """Copy images into grade subfolders. Returns grade counts."""
+        """Copy images into grade subfolders. Returns grade counts.
+
+        Clears existing grade folders before re-organizing to prevent duplicates.
+        """
         counts = {"A": 0, "B": 0, "C": 0, "rejected": 0}
 
+        # Clear existing grade folders to prevent duplicates on re-run
         for grade in counts:
-            (self.grades_dir / grade).mkdir(parents=True, exist_ok=True)
+            grade_dir = self.grades_dir / grade
+            if grade_dir.exists():
+                for f in grade_dir.iterdir():
+                    if f.is_file():
+                        f.unlink()
+            grade_dir.mkdir(parents=True, exist_ok=True)
 
         for item in scores:
             src = Path(item.path)

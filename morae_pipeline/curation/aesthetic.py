@@ -64,20 +64,19 @@ def _load_models(device: str = "cuda") -> bool:
         _model = model
         _preprocess = preprocess
 
-        # Aesthetic MLP: simple linear predictor on CLIP embeddings
-        # LAION aesthetic predictor v2: 768 -> 128 -> 64 -> 16 -> 1
+        # Aesthetic MLP: LAION aesthetic predictor (sac+logos+ava1-l14-linearMSE)
+        # Architecture: 768 -> 1024 -> 128 -> 64 -> 16 -> 1
         class AestheticMLP(nn.Module):
             def __init__(self):
                 super().__init__()
                 self.layers = nn.Sequential(
-                    nn.Linear(768, 128),
-                    nn.ReLU(),
+                    nn.Linear(768, 1024),
+                    nn.Dropout(0.2),
+                    nn.Linear(1024, 128),
                     nn.Dropout(0.2),
                     nn.Linear(128, 64),
-                    nn.ReLU(),
-                    nn.Dropout(0.2),
+                    nn.Dropout(0.1),
                     nn.Linear(64, 16),
-                    nn.ReLU(),
                     nn.Linear(16, 1),
                 )
 

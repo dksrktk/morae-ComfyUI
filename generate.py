@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
-generate.py - 자연어 → DeepSeek → ComfyUI 이미지 생성 (스타일 프리셋 지원)
+generate.py - 자연어 → DeepSeek → ComfyUI 이미지 생성 (Hires Fix + 듀얼 LoRA)
+Based on 꼴짤1 workflow
+
 Usage:
-  python generate.py "설명"                    # 기본 (스타일 없이)
-  python generate.py "설명" --style v127       # 스타일 프리셋 사용
-  python generate.py --list-styles             # 스타일 목록 보기
+  python generate.py "설명"                              # 기본 (Hires Fix ON)
+  python generate.py "설명" --no-hires                   # Hires Fix 끄기
+  python generate.py "설명" --lora wakitan.safetensors   # 커스텀 LoRA
+  python generate.py --list-styles                       # 스타일 목록 보기
 """
 
 import sys
@@ -29,54 +32,83 @@ STYLES_DIR = SCRIPT_DIR / "styles"
 PROMPTS_FILE = STYLES_DIR / "prompts_versions.yaml"
 CATEGORIES_FILE = STYLES_DIR / "artist_categories.yaml"
 
-# Default generation settings
-DEFAULT_MODEL = "Illustrious-XL-v1.0.safetensors"
-DEFAULT_WIDTH = 1024
-DEFAULT_HEIGHT = 1024
-DEFAULT_STEPS = 28
+# Default generation settings (from 꼴짤1 workflow)
+DEFAULT_MODEL = "waiIllustriousSDXL_v160.safetensors"
+DEFAULT_WIDTH = 832
+DEFAULT_HEIGHT = 1216
+DEFAULT_STEPS = 25
 DEFAULT_CFG = 7.0
 
+# Default LoRA settings
+DEFAULT_LORA1 = "wakitan.safetensors"
+DEFAULT_LORA1_STRENGTH = 1.0
+DEFAULT_LORA2 = None  # illustrious_masterpieces_v3 - 다운로드 필요
+DEFAULT_LORA2_STRENGTH = 0.8
+
+# 꼴짤1 테스트용 프롬프트
+TEST_POSITIVE = """wakitan,,, masterpiece, best quality, very aesthetic, uncensored,
+1girl, solo, breasts, looking at viewer, open mouth, bangs, hair ornament, dress, cleavage, hair between eyes, bare shoulders, nipples, blue hair, purple eyes, sidelocks, sky, tongue, hairclip, tongue out, pink eyes, armpits, huge breasts, side ponytail, , night, halterneck, building, revealing clothes, night sky, blue nails, backless outfit, selfie, cityscape, backless dress, skyscraper, halter dress, evening gown, plunging neckline, fellatio gesture, silver dress, st. louis (azur lane), st. louis (luxurious wheels) (azur lane)"""
+
+TEST_NEGATIVE = """low quality, worst quality, bad quality, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, text, signature, watermark, username, artist name, wet, (from below:1.5), mosaic censoring, (censored:1.2), blood, weapon, knife, yandere trance, blank censor, bar censor, abs, muscular,"""
+
+# Hires Fix settings
+DEFAULT_UPSCALER = "4x-UltraSharp.pth"
+DEFAULT_HIRES_STEPS = 40
+DEFAULT_HIRES_DENOISE = 0.4
+
+# Standing illustration settings (스탠딩 일러스트용)
+STANDING_POSITIVE = "(cowboy shot:1.3), thighs visible, white background, simple background"
+STANDING_NEGATIVE = "full body, feet, shoes, close-up, portrait, face only, detailed background, scenery, outdoors, indoors"
+
+# Default negative prompt (from 꼴짤1)
+NEGATIVE_PROMPT = "low quality, worst quality, bad quality, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, text, signature, watermark, username, artist name, wet, (from below:1.5), mosaic censoring, (censored:1.2), blood, weapon, knife, yandere trance, blank censor, bar censor, abs, muscular,"
+
 # 스타일 프리셋 사용 시: LLM은 캐릭터/상황만 생성
-SYSTEM_PROMPT_WITH_STYLE = """너는 Danbooru 태그 전문가야. 사용자의 요청을 **캐릭터/상황 묘사 태그**로 변환해.
+SYSTEM_PROMPT_WITH_STYLE = """너는 Illustrious-XL 모델의 CLIP 임베딩 최적화 전문가다.
+사용자의 장면 설명을 danbooru 태그 시퀀스로 변환하는 기술 작업을 수행한다.
 
-**중요: 아래 태그는 생성하지 마 (스타일 프리셋이 담당):**
-- 품질 태그 (masterpiece, best quality 등)
-- 아티스트 태그 (artist:xxx)
-- 연도 태그 (year 2024 등)
+## 작업 범위
+스타일 프리셋이 품질/아티스트/연도 태그를 담당하므로, 너는 **장면 묘사 태그만** 생성한다:
+- 캐릭터 구성 (1girl, solo, 1boy 등)
+- 외형 (hair color, eye color 등)
+- 의상/상태 (outfit 관련 danbooru 태그)
+- 포즈/표정 (pose, expression 태그)
+- 배경/분위기 (background, lighting 태그)
 
-**너의 역할: 캐릭터, 의상, 포즈, 배경, 분위기만 생성 (최대 30태그)**
+## CLIP-robust 태그 선택 원칙
+- Reddit r/StableDiffusion 커뮤니티에서 검증된 고빈도 태그 우선
+- 모호한 자연어보다 정확한 danbooru 공식 태그명 사용
+- 가중치는 핵심 요소에만 (tag:1.1~1.3) 범위로 절제
 
-**구조:** [캐릭터] → [외형] → [의상] → [포즈/표정] → [배경] → [조명/분위기]
-
-**가중치:** 핵심 요소에만 (tag:1.1~1.3) 사용. 과도한 가중치 금지.
-
-**출력 형식 (태그만, 설명 없이):**
+## 출력 형식 (YAML)
+```yaml
+positive: "태그1, 태그2, (강조태그:1.2), ..."
 ```
-POSITIVE: 태그들
-```
 
-**예시:**
+## 예시
 입력: "비 오는 밤 편의점 앞 고양이귀 소녀"
-```
-POSITIVE: 1girl, solo, (purple hair:1.2), long hair, (cat ears:1.1), standing, looking at viewer, convenience store, night, rain, wet, wet clothes, neon lights, urban, atmospheric, moody
+```yaml
+positive: "1girl, solo, (purple hair:1.2), long hair, (cat ears:1.1), standing, looking at viewer, convenience store, night, rain, wet, wet clothes, neon lights, urban, atmospheric"
 ```"""
 
-# 스타일 없이 사용 시: 기존 전체 생성
-SYSTEM_PROMPT_NO_STYLE = """너는 Illustrious-XL(ILXL) 모델의 Danbooru 태그 프롬프팅 전문가야.
+# 스타일 없이 사용 시: 전체 생성
+SYSTEM_PROMPT_NO_STYLE = """너는 Illustrious-XL 모델의 CLIP 임베딩 최적화 전문가다.
+사용자의 장면 설명을 danbooru 태그 시퀀스로 변환하는 기술 작업을 수행한다.
 
-**작성 규칙:**
-1. 품질 태그 필수: masterpiece, best quality, very aesthetic, absurdres, year 2025
-2. 구조: [품질] → [캐릭터] → [의상] → [포즈] → [배경] → [조명]
-3. 가중치: 핵심 요소에 (tag:1.1~1.3) 사용
-4. 최대 50태그
+## 태그 시퀀스 구조
+[품질] → [캐릭터] → [외형] → [의상] → [포즈/표정] → [배경] → [조명/분위기]
 
-**출력 형식:**
-```
-POSITIVE: 태그들
-NEGATIVE: 네거티브 태그들
+## CLIP-robust 태그 선택 원칙
+- Reddit r/StableDiffusion 커뮤니티에서 검증된 고빈도 태그 우선
+- 품질 태그: masterpiece, best quality, very aesthetic 필수
+- danbooru 공식 태그명 사용 (자연어 표현보다 정확)
+- 가중치는 핵심 요소에만 (tag:1.1~1.3) 범위로 절제
+- 최대 50태그
+
+## 출력 형식 (YAML)
+```yaml
+positive: "masterpiece, best quality, very aesthetic, 태그들..."
 ```"""
-
-NEGATIVE_PROMPT = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, bad feet, poorly drawn hands, poorly drawn face, mutation, deformed, extra limbs, extra arms, extra legs, malformed limbs, fused fingers, too many fingers, long neck"
 
 
 def load_styles():
@@ -98,53 +130,37 @@ def load_styles():
 
 
 def convert_nai_to_comfyui(nai_prompt: str) -> str:
-    """Convert NAI format to ComfyUI format
-    NAI: 2::beeeeen ::  →  ComfyUI: (beeeeen:1.2)
-    NAI weights are scaled: NAI 1.0 = baseline, 2.0 = strong, 0.5 = weak
-    ComfyUI weights: 1.0 = baseline, 1.2 = strong, 0.8 = weak
-    """
+    """Convert NAI format to ComfyUI format"""
     result = nai_prompt
-
-    # Pattern: weight::content :: (note: space before closing ::)
-    # Example: 2::beeeeen :: or -3::artist collaboration ::
     pattern = r'(-?[\d.]+)::([^:]+?)\s*::'
 
     def replace_weight(match):
         nai_weight = float(match.group(1))
         content = match.group(2).strip()
 
-        # Skip negative weights (these are NAI's way of de-emphasizing)
         if nai_weight < 0:
-            # For negative weights, either skip or use very low weight
             if nai_weight <= -3:
-                return ""  # Remove completely
+                return ""
             else:
-                # Convert to low ComfyUI weight
                 comfy_weight = max(0.5, 1.0 + nai_weight * 0.1)
                 return f"({content}:{comfy_weight:.1f})"
 
-        # Scale NAI weights to ComfyUI range
-        # NAI: 0.5-1.5 is normal range, 2-4 is strong, 5+ is very strong
-        # ComfyUI: 0.8-1.4 is usable range
         if nai_weight <= 0.5:
             comfy_weight = 0.8
         elif nai_weight <= 1.5:
-            comfy_weight = 0.9 + (nai_weight - 0.5) * 0.2  # 0.9-1.1
+            comfy_weight = 0.9 + (nai_weight - 0.5) * 0.2
         elif nai_weight <= 3:
-            comfy_weight = 1.1 + (nai_weight - 1.5) * 0.1  # 1.1-1.25
+            comfy_weight = 1.1 + (nai_weight - 1.5) * 0.1
         else:
-            comfy_weight = min(1.4, 1.25 + (nai_weight - 3) * 0.02)  # cap at 1.4
+            comfy_weight = min(1.4, 1.25 + (nai_weight - 3) * 0.02)
 
-        # Skip if weight is ~1.0
         if 0.95 <= comfy_weight <= 1.05:
             return content
 
         return f"({content}:{comfy_weight:.1f})"
 
     result = re.sub(pattern, replace_weight, result)
-
-    # Clean up
-    result = re.sub(r',\s*,+', ',', result)  # Remove empty spots
+    result = re.sub(r',\s*,+', ',', result)
     result = re.sub(r'\s+', ' ', result)
     result = result.strip().strip(',').strip()
 
@@ -155,7 +171,6 @@ def list_styles(styles: dict, categories: dict):
     """Print available styles"""
     print("\n=== 사용 가능한 스타일 프리셋 ===\n")
 
-    # Group by category
     cat_groups = {
         'general': [],
         'mature': [],
@@ -169,16 +184,10 @@ def list_styles(styles: dict, categories: dict):
         notes = details.get('notes', '')
         artists = details.get('main_artists', [])[:3]
 
-        # Skip ISSUE versions
         if 'ISSUE' in notes or '망가짐' in notes:
             continue
 
-        info = {
-            'version': version,
-            'artists': artists,
-            'notes': notes
-        }
-
+        info = {'version': version, 'artists': artists, 'notes': notes}
         for cat in cats:
             if cat in cat_groups:
                 cat_groups[cat].append(info)
@@ -195,7 +204,7 @@ def list_styles(styles: dict, categories: dict):
         versions = cat_groups.get(cat, [])
         if versions:
             print(f"【{name}】")
-            for v in versions[:10]:  # Show max 10 per category
+            for v in versions[:10]:
                 artists_str = ', '.join(v['artists']) if v['artists'] else 'N/A'
                 print(f"  {v['version']}: {artists_str}")
             if len(versions) > 10:
@@ -203,7 +212,7 @@ def list_styles(styles: dict, categories: dict):
             print()
 
 
-def call_deepseek(user_input: str, use_style: bool = False) -> tuple[str, str]:
+def call_deepseek(user_input: str, use_style: bool = False) -> str:
     """Call DeepSeek API to generate optimized prompt"""
     headers = {
         "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
@@ -218,8 +227,8 @@ def call_deepseek(user_input: str, use_style: bool = False) -> tuple[str, str]:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_input}
         ],
-        "temperature": 0.7,
-        "max_tokens": 300 if use_style else 500
+        "temperature": 0.4,  # 낮은 temperature로 더 결정적인 출력
+        "max_tokens": 500 if use_style else 800
     }
 
     print(f"[DeepSeek] 프롬프트 생성 중...")
@@ -229,120 +238,240 @@ def call_deepseek(user_input: str, use_style: bool = False) -> tuple[str, str]:
     result = response.json()
     content = result["choices"][0]["message"]["content"].strip()
 
-    # Parse POSITIVE from response
-    positive = ""
-    negative = NEGATIVE_PROMPT
+    # YAML 형식 파싱 시도 (새 형식)
+    yaml_match = re.search(r'```yaml\s*\n(.*?)```', content, re.DOTALL)
+    if yaml_match:
+        yaml_content = yaml_match.group(1).strip()
+        # positive: "..." 형식에서 추출
+        pos_match = re.search(r'positive:\s*["\']?(.+?)["\']?\s*$', yaml_content, re.MULTILINE | re.IGNORECASE)
+        if pos_match:
+            return pos_match.group(1).strip().strip('"\'')
 
+    # 기존 POSITIVE: 형식 파싱 (폴백)
     pos_match = re.search(r'POSITIVE:\s*(.+?)(?=NEGATIVE:|$|```)', content, re.DOTALL | re.IGNORECASE)
     if pos_match:
         positive = pos_match.group(1).strip().strip('`').strip()
     else:
-        positive = content.replace('```', '').replace('POSITIVE:', '').strip()
+        positive = content.replace('```', '').replace('POSITIVE:', '').replace('positive:', '').strip()
 
-    # Parse NEGATIVE if present
-    neg_match = re.search(r'NEGATIVE:\s*(.+?)(?=$|```)', content, re.DOTALL | re.IGNORECASE)
-    if neg_match:
-        negative = neg_match.group(1).strip().strip('`').strip()
-
-    return positive, negative
+    return positive
 
 
-def queue_prompt(positive_prompt: str, negative_prompt: str = NEGATIVE_PROMPT,
-                 model: str = DEFAULT_MODEL, width: int = DEFAULT_WIDTH,
-                 height: int = DEFAULT_HEIGHT, steps: int = DEFAULT_STEPS,
-                 cfg: float = DEFAULT_CFG, lora: str = None, lora_strength: float = 0.8) -> str:
-    """Queue image generation in ComfyUI"""
+def build_workflow(positive_prompt: str, negative_prompt: str, args) -> dict:
+    """Build ComfyUI workflow (꼴짤1 style with Hires Fix)"""
 
     seed = random.randint(1, 2**32 - 1)
 
-    workflow = {
-        "1": {
-            "class_type": "CheckpointLoaderSimple",
-            "inputs": {"ckpt_name": model}
-        },
+    workflow = {}
+
+    # 1. Checkpoint Loader
+    workflow["1"] = {
+        "class_type": "CheckpointLoaderSimple",
+        "inputs": {"ckpt_name": args.model}
     }
 
-    # LoRA 사용 시
-    if lora:
-        workflow["9"] = {
-            "class_type": "LoraLoader",
-            "inputs": {
-                "model": ["1", 0],
-                "clip": ["1", 1],
-                "lora_name": lora,
-                "strength_model": lora_strength,
-                "strength_clip": lora_strength
-            }
-        }
-        model_output = ["9", 0]
-        clip_output = ["9", 1]
-    else:
-        model_output = ["1", 0]
-        clip_output = ["1", 1]
-
-    workflow["8"] = {
+    # 2. CLIP Set Last Layer
+    workflow["2"] = {
         "class_type": "CLIPSetLastLayer",
         "inputs": {
-            "clip": clip_output,
+            "clip": ["1", 1],
             "stop_at_clip_layer": -2
         }
     }
-    workflow["2"] = {
-        "class_type": "CLIPTextEncode",
-        "inputs": {
-            "clip": ["8", 0],
-            "text": positive_prompt
+
+    # 현재 model/clip 출력 추적
+    current_model = ["1", 0]
+    current_clip = ["2", 0]
+
+    # 15. LoRA 1 (wakitan)
+    if args.lora1:
+        workflow["15"] = {
+            "class_type": "LoraLoader",
+            "inputs": {
+                "model": current_model,
+                "clip": current_clip,
+                "lora_name": args.lora1,
+                "strength_model": args.lora1_strength,
+                "strength_clip": args.lora1_strength
+            }
         }
-    }
+        current_model = ["15", 0]
+        current_clip = ["15", 1]
+
+    # 16. LoRA 2 (illustrious_masterpieces)
+    if args.lora2:
+        workflow["16"] = {
+            "class_type": "LoraLoader",
+            "inputs": {
+                "model": current_model,
+                "clip": current_clip,
+                "lora_name": args.lora2,
+                "strength_model": args.lora2_strength,
+                "strength_clip": args.lora2_strength
+            }
+        }
+        current_model = ["16", 0]
+        current_clip = ["16", 1]
+
+    # 3. Positive CLIP Text Encode
     workflow["3"] = {
         "class_type": "CLIPTextEncode",
         "inputs": {
-            "clip": ["8", 0],
+            "clip": current_clip,
+            "text": positive_prompt
+        }
+    }
+
+    # 4. Negative CLIP Text Encode
+    workflow["4"] = {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+            "clip": current_clip,
             "text": negative_prompt
         }
     }
-    workflow["4"] = {
+
+    # 6. Empty Latent Image
+    workflow["6"] = {
         "class_type": "EmptyLatentImage",
-        "inputs": {"width": width, "height": height, "batch_size": 1}
+        "inputs": {
+            "width": args.width,
+            "height": args.height,
+            "batch_size": 1
+        }
     }
+
+    # 5. KSampler (1차)
     workflow["5"] = {
         "class_type": "KSampler",
         "inputs": {
-            "model": model_output,
-            "positive": ["2", 0],
-            "negative": ["3", 0],
-            "latent_image": ["4", 0],
+            "model": current_model,
+            "positive": ["3", 0],
+            "negative": ["4", 0],
+            "latent_image": ["6", 0],
             "seed": seed,
-            "steps": steps,
-            "cfg": cfg,
+            "steps": args.steps,
+            "cfg": args.cfg,
             "sampler_name": "euler",
             "scheduler": "normal",
             "denoise": 1.0
         }
     }
-    workflow["6"] = {
-        "class_type": "VAEDecode",
-        "inputs": {
-            "samples": ["5", 0],
-            "vae": ["1", 2]
+
+    if args.hires:
+        # Hires Fix Pipeline
+
+        # 9. VAE Decode Tiled (1차 결과)
+        workflow["9"] = {
+            "class_type": "VAEDecodeTiled",
+            "inputs": {
+                "samples": ["5", 0],
+                "vae": ["1", 2],
+                "tile_size": 512,
+                "overlap": 64,
+                "temporal_size": 64,
+                "temporal_overlap": 8
+            }
         }
-    }
-    workflow["7"] = {
+
+        # 10. Upscale Model Loader
+        workflow["10"] = {
+            "class_type": "UpscaleModelLoader",
+            "inputs": {"model_name": args.upscaler}
+        }
+
+        # 11. Image Upscale With Model
+        workflow["11"] = {
+            "class_type": "ImageUpscaleWithModel",
+            "inputs": {
+                "upscale_model": ["10", 0],
+                "image": ["9", 0]
+            }
+        }
+
+        # 12. Image Scale (다운스케일 to original size)
+        workflow["12"] = {
+            "class_type": "ImageScale",
+            "inputs": {
+                "image": ["11", 0],
+                "upscale_method": "nearest-exact",
+                "width": args.width,
+                "height": args.height,
+                "crop": "disabled"
+            }
+        }
+
+        # 13. VAE Encode Tiled
+        workflow["13"] = {
+            "class_type": "VAEEncodeTiled",
+            "inputs": {
+                "pixels": ["12", 0],
+                "vae": ["1", 2],
+                "tile_size": 512,
+                "overlap": 64,
+                "temporal_size": 64,
+                "temporal_overlap": 8
+            }
+        }
+
+        # 14. KSampler (2차 - Hires Fix)
+        workflow["14"] = {
+            "class_type": "KSampler",
+            "inputs": {
+                "model": current_model,
+                "positive": ["3", 0],
+                "negative": ["4", 0],
+                "latent_image": ["13", 0],
+                "seed": seed,
+                "steps": args.hires_steps,
+                "cfg": args.cfg,
+                "sampler_name": "euler",
+                "scheduler": "normal",
+                "denoise": args.hires_denoise
+            }
+        }
+
+        # 7. VAE Decode (최종)
+        workflow["7"] = {
+            "class_type": "VAEDecode",
+            "inputs": {
+                "samples": ["14", 0],
+                "vae": ["1", 2]
+            }
+        }
+    else:
+        # No Hires Fix - 바로 디코드
+        workflow["7"] = {
+            "class_type": "VAEDecode",
+            "inputs": {
+                "samples": ["5", 0],
+                "vae": ["1", 2]
+            }
+        }
+
+    # 8. Save Image
+    workflow["8"] = {
         "class_type": "SaveImage",
         "inputs": {
-            "images": ["6", 0],
+            "images": ["7", 0],
             "filename_prefix": "gen"
         }
     }
 
-    print(f"[ComfyUI] 이미지 생성 요청 (seed: {seed})...")
-    response = requests.post(f"{COMFYUI_URL}/prompt", json={"prompt": workflow}, timeout=10)
-    response.raise_for_status()
+    return workflow, seed
 
+
+def queue_prompt(workflow: dict) -> str:
+    """Queue workflow in ComfyUI"""
+    response = requests.post(f"{COMFYUI_URL}/prompt", json={"prompt": workflow}, timeout=10)
+    if response.status_code != 200:
+        import json
+        print(f"[DEBUG] Error response: {json.dumps(response.json(), indent=2)}")
+    response.raise_for_status()
     return response.json()["prompt_id"]
 
 
-def wait_for_completion(prompt_id: str, timeout: int = 300) -> dict:
+def wait_for_completion(prompt_id: str, timeout: int = 600) -> dict:
     """Wait for image generation to complete"""
     print(f"[ComfyUI] 생성 중", end="", flush=True)
 
@@ -373,7 +502,7 @@ def wait_for_completion(prompt_id: str, timeout: int = 300) -> dict:
 def get_output_image(result: dict) -> str:
     """Extract output image path from result"""
     try:
-        images = result["outputs"]["7"]["images"]
+        images = result["outputs"]["8"]["images"]
         if images:
             filename = images[0]["filename"]
             subfolder = images[0].get("subfolder", "")
@@ -386,16 +515,49 @@ def get_output_image(result: dict) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='자연어 → 이미지 생성')
+    parser = argparse.ArgumentParser(description='자연어 → 이미지 생성 (Hires Fix)')
     parser.add_argument('prompt', nargs='*', help='생성할 이미지 설명')
     parser.add_argument('--style', '-s', type=str, help='스타일 프리셋 (예: v127, v07)')
     parser.add_argument('--list-styles', '-l', action='store_true', help='스타일 목록 보기')
-    parser.add_argument('--model', '-m', type=str, default=DEFAULT_MODEL, help='체크포인트 모델')
-    parser.add_argument('--lora', type=str, help='LoRA 파일명 (예: wakitan.safetensors)')
-    parser.add_argument('--lora-strength', type=float, default=0.8, help='LoRA 강도 (기본: 0.8)')
-    parser.add_argument('--trigger', '-t', type=str, help='LoRA trigger word (예: wakitan)')
+
+    # Model settings
+    parser.add_argument('--model', '-m', type=str, default=DEFAULT_MODEL, help=f'체크포인트 모델 (기본: {DEFAULT_MODEL})')
+    parser.add_argument('--width', type=int, default=DEFAULT_WIDTH, help=f'너비 (기본: {DEFAULT_WIDTH})')
+    parser.add_argument('--height', type=int, default=DEFAULT_HEIGHT, help=f'높이 (기본: {DEFAULT_HEIGHT})')
+    parser.add_argument('--steps', type=int, default=DEFAULT_STEPS, help=f'샘플링 스텝 (기본: {DEFAULT_STEPS})')
+    parser.add_argument('--cfg', type=float, default=DEFAULT_CFG, help=f'CFG 스케일 (기본: {DEFAULT_CFG})')
+
+    # LoRA settings
+    parser.add_argument('--lora1', type=str, default=DEFAULT_LORA1, help=f'LoRA 1 (기본: {DEFAULT_LORA1})')
+    parser.add_argument('--lora1-strength', type=float, default=DEFAULT_LORA1_STRENGTH, help=f'LoRA 1 강도 (기본: {DEFAULT_LORA1_STRENGTH})')
+    parser.add_argument('--lora2', type=str, default=DEFAULT_LORA2, help=f'LoRA 2 (기본: {DEFAULT_LORA2})')
+    parser.add_argument('--lora2-strength', type=float, default=DEFAULT_LORA2_STRENGTH, help=f'LoRA 2 강도 (기본: {DEFAULT_LORA2_STRENGTH})')
+    parser.add_argument('--no-lora1', action='store_true', help='LoRA 1 비활성화')
+    parser.add_argument('--no-lora2', action='store_true', help='LoRA 2 비활성화')
+    parser.add_argument('--trigger', '-t', type=str, default='wakitan', help='LoRA trigger word (기본: wakitan)')
+
+    # Hires Fix settings
+    parser.add_argument('--hires', action='store_true', default=False, help='Hires Fix 사용')
+    parser.add_argument('--no-hires', action='store_true', help='Hires Fix 비활성화 (기본: OFF)')
+    parser.add_argument('--upscaler', type=str, default=DEFAULT_UPSCALER, help=f'업스케일러 (기본: {DEFAULT_UPSCALER})')
+    parser.add_argument('--hires-steps', type=int, default=DEFAULT_HIRES_STEPS, help=f'Hires 스텝 (기본: {DEFAULT_HIRES_STEPS})')
+    parser.add_argument('--hires-denoise', type=float, default=DEFAULT_HIRES_DENOISE, help=f'Hires denoise (기본: {DEFAULT_HIRES_DENOISE})')
+
+    # Test mode
+    parser.add_argument('--dry-run', action='store_true', help='꼴짤1 프롬프트로 테스트 (DeepSeek API 사용 안함)')
+
+    # Standing illustration mode (스탠딩 일러스트)
+    parser.add_argument('--standing', action='store_true', help='스탠딩 일러스트 모드 (cowboy shot + white background)')
 
     args = parser.parse_args()
+
+    # Handle --no-* flags
+    if args.no_hires:
+        args.hires = False
+    if args.no_lora1:
+        args.lora1 = None
+    if args.no_lora2:
+        args.lora2 = None
 
     # Load styles
     styles, categories = load_styles()
@@ -405,23 +567,28 @@ def main():
         list_styles(styles, categories)
         return
 
-    # Check prompt
-    if not args.prompt:
+    # Check prompt (not required for dry-run)
+    if not args.prompt and not args.dry_run:
         parser.print_help()
         sys.exit(1)
 
-    user_input = " ".join(args.prompt)
+    user_input = " ".join(args.prompt) if args.prompt else "dry-run test"
     style_version = args.style
 
-    print(f"\n{'='*50}")
+    print(f"\n{'='*60}")
     print(f"[입력] {user_input}")
+    print(f"[모델] {args.model}")
+    print(f"[해상도] {args.width}x{args.height}")
+    print(f"[LoRA] {args.lora1 or 'None'} + {args.lora2 or 'None'}")
+    print(f"[Hires Fix] {'ON' if args.hires else 'OFF'}")
+    if args.standing:
+        print(f"[스탠딩] ON (cowboy shot + white bg)")
     if style_version:
         print(f"[스타일] {style_version}")
-    print(f"{'='*50}\n")
+    print(f"{'='*60}\n")
 
     # Get style preset if specified
     style_positive = ""
-    style_negative = ""
 
     if style_version:
         if style_version not in styles:
@@ -430,9 +597,7 @@ def main():
 
         style_data = styles[style_version]
         style_positive = convert_nai_to_comfyui(style_data.get('positive', ''))
-        style_negative = style_data.get('negative', '')
 
-        # Show style info
         if style_version in categories:
             cat_info = categories[style_version]
             artists = cat_info.get('main_artists', [])
@@ -441,41 +606,56 @@ def main():
             print(f"[아티스트] {', '.join(artists[:5])}")
             print()
 
-    # Generate scene prompt via DeepSeek
-    try:
-        scene_positive, llm_negative = call_deepseek(user_input, use_style=bool(style_version))
-        print(f"\n[LLM 생성 태그]\n{scene_positive}\n")
-    except Exception as e:
-        print(f"[ERROR] DeepSeek API 호출 실패: {e}")
-        sys.exit(1)
-
-    # Combine style + scene
-    if style_version:
-        final_positive = f"{style_positive}, {scene_positive}"
-        final_negative = style_negative if style_negative else llm_negative
+    # Generate prompt
+    if args.dry_run:
+        # 꼴짤1 테스트 모드
+        print(f"[DRY-RUN] 꼴짤1 프롬프트 사용\n")
+        final_positive = TEST_POSITIVE
+        final_negative = TEST_NEGATIVE
     else:
-        final_positive = scene_positive
-        final_negative = llm_negative
+        # DeepSeek API 호출
+        try:
+            scene_positive = call_deepseek(user_input, use_style=bool(style_version))
+            print(f"\n[LLM 생성 태그]\n{scene_positive}\n")
+        except Exception as e:
+            print(f"[ERROR] DeepSeek API 호출 실패: {e}")
+            sys.exit(1)
 
-    # Add trigger word at the beginning if specified
-    if args.trigger:
-        final_positive = f"{args.trigger}, {final_positive}"
+        # Combine prompts
+        if style_version:
+            final_positive = f"{style_positive}, {scene_positive}"
+        else:
+            final_positive = scene_positive
+
+        # Add trigger word at the beginning
+        if args.trigger:
+            final_positive = f"{args.trigger}, {final_positive}"
+
+        final_negative = NEGATIVE_PROMPT
+
+    # Standing illustration mode
+    if args.standing:
+        final_positive = f"{final_positive}, {STANDING_POSITIVE}"
+        final_negative = f"{final_negative}, {STANDING_NEGATIVE}"
+        print(f"[스탠딩 모드] cowboy shot + white background 적용")
 
     print(f"[최종 Positive] ({len(final_positive.split(','))}태그)")
-    print(f"{final_positive[:200]}..." if len(final_positive) > 200 else final_positive)
+    print(f"{final_positive[:300]}..." if len(final_positive) > 300 else final_positive)
     print()
 
-    # Queue image generation
+    # Build and queue workflow
     try:
-        prompt_id = queue_prompt(final_positive, final_negative, model=args.model,
-                                 lora=args.lora, lora_strength=args.lora_strength)
+        workflow, seed = build_workflow(final_positive, final_negative, args)
+        print(f"[ComfyUI] 워크플로우 전송 (seed: {seed})...")
+        prompt_id = queue_prompt(workflow)
     except Exception as e:
         print(f"[ERROR] ComfyUI 연결 실패: {e}")
         print("ComfyUI가 실행 중인지 확인하세요: ./run_comfy.sh")
         sys.exit(1)
 
-    # Wait for completion
-    result = wait_for_completion(prompt_id)
+    # Wait for completion (longer timeout for Hires Fix)
+    timeout = 600 if args.hires else 300
+    result = wait_for_completion(prompt_id, timeout=timeout)
     if not result:
         print("[ERROR] 이미지 생성 타임아웃")
         sys.exit(1)
@@ -484,9 +664,9 @@ def main():
     output_path = get_output_image(result)
     if output_path:
         full_path = SCRIPT_DIR / output_path
-        print(f"\n{'='*50}")
+        print(f"\n{'='*60}")
         print(f"[완료] {full_path}")
-        print(f"{'='*50}\n")
+        print(f"{'='*60}\n")
     else:
         print("[WARN] 출력 이미지를 찾을 수 없습니다")
 

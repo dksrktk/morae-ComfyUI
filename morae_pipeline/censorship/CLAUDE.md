@@ -55,6 +55,21 @@ Output Image
 | SAM2 | `models/sam2/sam2.1_hiera_large.pt` | bbox → mask 변환 |
 | imgutils | HuggingFace cache | 2차 감지 (YOLO fallback) |
 
+## 설치
+
+```bash
+# 의존성 설치
+pip install -r morae_pipeline/requirements.txt
+
+# YOLO 모델 다운로드 (수동)
+# models/yolo/ntd11_anime_nsfw_segm_v5-variant1.pt
+# → Civitai 또는 HuggingFace에서 다운로드
+
+# SAM2 모델 다운로드
+mkdir -p models/sam2
+wget -P models/sam2 https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
+```
+
 ## 사용법
 
 ```bash

@@ -1,0 +1,17 @@
+# Morae Pipeline Dependencies
+
+# Detection
+ultralytics>=8.0.0      # YOLO
+dghs-imgutils[gpu]>=0.8.0  # imgutils (detect_censors, nudenet)
+
+# Segmentation
+sam2 @ git+https://github.com/facebookresearch/sam2.git  # SAM2
+
+# Image processing
+opencv-python>=4.8.0
+scipy>=1.10.0
+Pillow>=9.0.0
+
+# Core
+numpy>=1.24.0
+torch>=2.0.0

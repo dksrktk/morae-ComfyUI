@@ -130,9 +130,15 @@ class WorkflowTemplate:
 class WorkflowBuilder:
     """동적 ComfyUI 워크플로우 빌더 (generate.py 기반)."""
 
-    def __init__(self, config: "GenerationConfig", ipadapter_config: Optional[Any] = None):
+    def __init__(
+        self,
+        config: "GenerationConfig",
+        ipadapter_config: Optional[Any] = None,
+        controlnet_config: Optional[Any] = None,
+    ):
         self.config = config
         self.ipadapter_config = ipadapter_config
+        self.controlnet_config = controlnet_config
 
     def build(
         self,
@@ -142,6 +148,8 @@ class WorkflowBuilder:
         filename_prefix: str = "gen",
         character_loras: Optional[list[dict]] = None,
         reference_image: Optional[str] = None,
+        controlnet_image: Optional[str] = None,
+        controlnet_extract: bool = False,
     ) -> tuple[dict, int]:
         """ComfyUI API 워크플로우 생성.
 
@@ -152,6 +160,8 @@ class WorkflowBuilder:
             filename_prefix: 파일명 프리픽스
             character_loras: 캐릭터 LoRA 목록 [{"path": ..., "weight": ..., "trigger_word": ...}]
             reference_image: IP-Adapter용 레퍼런스 이미지 경로
+            controlnet_image: ControlNet 포즈 이미지 경로 (라이브러리 또는 추출용)
+            controlnet_extract: True면 DWPose로 포즈 추출, False면 이미지 직접 사용
 
         Returns:
             (workflow_dict, seed)
@@ -278,6 +288,70 @@ class WorkflowBuilder:
             "inputs": {"clip": current_clip, "text": negative_prompt},
         }
 
+        # Conditioning 참조 (ControlNet 적용 시 변경됨)
+        current_positive = ["3", 0]
+        current_negative = ["4", 0]
+
+        # ControlNet (포즈 제어)
+        if controlnet_image and self.controlnet_config:
+            cn_cfg = self.controlnet_config
+
+            if controlnet_extract:
+                # DWPose로 포즈 추출 (레퍼런스 이미지에서)
+                # IP-Adapter LoadImage 노드가 있으면 재사용, 없으면 새로 생성
+                if "50" in workflow:
+                    pose_image_ref = ["50", 0]
+                else:
+                    workflow["60"] = {
+                        "class_type": "LoadImage",
+                        "inputs": {"image": controlnet_image},
+                    }
+                    pose_image_ref = ["60", 0]
+
+                # 63: DWPose Estimator (comfyui_controlnet_aux)
+                workflow["63"] = {
+                    "class_type": "DWPreprocessor",
+                    "inputs": {
+                        "image": pose_image_ref,
+                        "detect_hand": "enable",
+                        "detect_body": "enable",
+                        "detect_face": "enable",
+                        "resolution": 1024,
+                    },
+                }
+                controlnet_image_ref = ["63", 0]
+            else:
+                # 라이브러리 포즈 이미지 직접 사용
+                workflow["60"] = {
+                    "class_type": "LoadImage",
+                    "inputs": {"image": controlnet_image},
+                }
+                controlnet_image_ref = ["60", 0]
+
+            # 61: ControlNet Loader
+            workflow["61"] = {
+                "class_type": "ControlNetLoader",
+                "inputs": {"control_net_name": cn_cfg.model_name},
+            }
+
+            # 62: ControlNet Apply Advanced
+            workflow["62"] = {
+                "class_type": "ControlNetApplyAdvanced",
+                "inputs": {
+                    "positive": current_positive,
+                    "negative": current_negative,
+                    "control_net": ["61", 0],
+                    "image": controlnet_image_ref,
+                    "strength": cn_cfg.strength,
+                    "start_percent": cn_cfg.start_percent,
+                    "end_percent": cn_cfg.end_percent,
+                },
+            }
+
+            # KSampler가 ControlNet 출력 사용
+            current_positive = ["62", 0]
+            current_negative = ["62", 1]
+
         # 6. Empty Latent Image
         workflow["6"] = {
             "class_type": "EmptyLatentImage",
@@ -289,8 +363,8 @@ class WorkflowBuilder:
             "class_type": "KSampler",
             "inputs": {
                 "model": current_model,
-                "positive": ["3", 0],
-                "negative": ["4", 0],
+                "positive": current_positive,
+                "negative": current_negative,
                 "latent_image": ["6", 0],
                 "seed": seed,
                 "steps": cfg.steps,
@@ -352,8 +426,8 @@ class WorkflowBuilder:
                 "class_type": "KSampler",
                 "inputs": {
                     "model": current_model,
-                    "positive": ["3", 0],
-                    "negative": ["4", 0],
+                    "positive": current_positive,
+                    "negative": current_negative,
                     "latent_image": ["13", 0],
                     "seed": seed,
                     "steps": cfg.hires_steps,

@@ -77,20 +77,27 @@ class IPAdapterConfig:
 
 @dataclass
 class ControlNetConfig:
-    enabled: bool = False  # Off by default, requires ControlNet workflow template
-    model_name: str = "control_v11p_sd15_openpose.safetensors"
+    enabled: bool = False  # Off by default
+    # Illustrious XL 전용 ControlNet (SD 1.5 모델 사용 금지 - 색상 왜곡 발생)
+    # https://civitai.com/models/1359846/illustrious-xl-controlnet-openpose
+    model_name: str = "illustrious-xl-controlnet-openpose.safetensors"
 
-    # Pose library
-    pose_library_path: Optional[str] = None  # e.g. "./input/poses"
-    pose_category: Optional[str] = None  # Filter by category (e.g. "pov", "complex")
+    # Pose library (presets/controlnet/)
+    library_path: str = "morae_pipeline/presets/controlnet"
+    extraction_enabled: bool = True  # DWPose 런타임 추출 허용
+
+    # Legacy pose library (deprecated, use library_path instead)
+    pose_library_path: Optional[str] = None
+    pose_category: Optional[str] = None
 
     # Strength range for randomization (prevents identical outputs)
-    strength_default: float = 0.7
+    strength: float = 0.7
     strength_min: float = 0.5
     strength_max: float = 0.85
 
     # Ending step: ControlNet only guides early denoising (allows variation in details)
-    end_percent_default: float = 0.4
+    start_percent: float = 0.0
+    end_percent: float = 0.4
     end_percent_min: float = 0.3
     end_percent_max: float = 0.5
 

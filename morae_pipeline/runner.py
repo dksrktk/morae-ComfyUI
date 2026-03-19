@@ -11,6 +11,7 @@ from .client import ComfyUIClient
 from .config import PipelineConfig
 from .censorship.pipeline import CensorshipPipeline
 from .character.profile import CharacterLibrary, CharacterProfile
+from .controlnet_library import ControlNetLibrary, resolve_controlnet_image
 from .curation.pipeline import CurationPipeline
 from .outfit import OutfitList
 from .pose_list import PoseList, PoseGenerator
@@ -237,7 +238,7 @@ class PipelineRunner:
         logger.info(f"[Prompt] {generated.positive[:100]}...")
 
         # Step 2: 워크플로우 빌더
-        builder = WorkflowBuilder(gen_config, self.config.ipadapter)
+        builder = WorkflowBuilder(gen_config, self.config.ipadapter, self.config.controlnet)
 
         # Step 3: 배치 생성
         start = time.time()
@@ -363,7 +364,13 @@ class PipelineRunner:
         )
 
         # 워크플로우 빌더
-        builder = WorkflowBuilder(gen_config, self.config.ipadapter)
+        builder = WorkflowBuilder(gen_config, self.config.ipadapter, self.config.controlnet)
+
+        # ControlNet 라이브러리 초기화
+        cn_library = None
+        if self.config.controlnet.enabled:
+            cn_library = ControlNetLibrary(self.config.controlnet.library_path)
+            logger.info(f"ControlNet library: {len(cn_library.list_poses())} poses available")
 
         # 배치 생성
         start = time.time()
@@ -412,6 +419,20 @@ class PipelineRunner:
                         character_negative_tags=char.negative_tag_string,
                     )
 
+                    # ControlNet 이미지 결정 (하이브리드 로직)
+                    cn_image = None
+                    cn_extract = False
+                    if self.config.controlnet.enabled and cn_library:
+                        # 포즈에 직접 지정된 controlnet_image 우선
+                        if pose.controlnet_image:
+                            cn_image = pose.controlnet_image
+                            cn_extract = False
+                        else:
+                            # 하이브리드: 라이브러리 → 레퍼런스 추출
+                            cn_image, cn_extract = resolve_controlnet_image(
+                                pose.id, ref_image, cn_library
+                            )
+
                     for img_idx in range(images_per_pose):
                         filename_prefix = f"{pose.id}_{img_idx + 1:03d}"
 
@@ -422,6 +443,8 @@ class PipelineRunner:
                             filename_prefix=filename_prefix,
                             character_loras=char_loras,
                             reference_image=ref_image,
+                            controlnet_image=cn_image,
+                            controlnet_extract=cn_extract,
                         )
                         seed += 1
 
@@ -547,7 +570,13 @@ class PipelineRunner:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # 워크플로우 빌더
-        builder = WorkflowBuilder(gen_config, self.config.ipadapter)
+        builder = WorkflowBuilder(gen_config, self.config.ipadapter, self.config.controlnet)
+
+        # ControlNet 라이브러리 초기화
+        cn_library = None
+        if self.config.controlnet.enabled:
+            cn_library = ControlNetLibrary(self.config.controlnet.library_path)
+            logger.info(f"ControlNet library: {len(cn_library.list_poses())} poses available")
 
         # 캐릭터별 레퍼런스 이미지 업로드/생성
         ref_images: dict[str, str] = {}
@@ -649,6 +678,20 @@ class PipelineRunner:
                 # 레퍼런스 이미지
                 ref_image = ref_images.get(char_name)
 
+                # ControlNet 이미지 결정 (하이브리드 로직)
+                cn_image = None
+                cn_extract = False
+                if self.config.controlnet.enabled and cn_library:
+                    # 포즈에 직접 지정된 controlnet_image 우선
+                    if pose.controlnet_image:
+                        cn_image = pose.controlnet_image
+                        cn_extract = False
+                    else:
+                        # 하이브리드: 라이브러리 → 레퍼런스 추출
+                        cn_image, cn_extract = resolve_controlnet_image(
+                            pose_id, ref_image, cn_library
+                        )
+
                 for img_idx in range(images_per_combo):
                     filename_prefix = f"{pose_id}_{img_idx + 1:03d}"
 
@@ -658,6 +701,8 @@ class PipelineRunner:
                         seed=seed,
                         filename_prefix=filename_prefix,
                         reference_image=ref_image,
+                        controlnet_image=cn_image,
+                        controlnet_extract=cn_extract,
                     )
                     seed += 1
 

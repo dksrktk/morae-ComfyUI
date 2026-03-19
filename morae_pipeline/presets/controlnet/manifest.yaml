@@ -1,0 +1,48 @@
+# ControlNet 포즈 라이브러리 매니페스트
+# 포즈 ID → OpenPose 스켈레톤 이미지 경로 매핑
+#
+# 사용법:
+#   1. OpenPose/DWPose로 추출한 스켈레톤 이미지를 해당 폴더에 배치
+#   2. 이 파일에 포즈 ID와 경로 매핑 추가
+#   3. PoseListEntry.controlnet_image 또는 자동 매핑으로 사용
+#
+# 이미지 요구사항:
+#   - 형식: PNG (투명 배경 권장)
+#   - 해상도: 1024x1024 또는 생성 해상도와 유사
+#   - 내용: OpenPose 스켈레톤 (검은 배경 + 컬러 스켈레톤)
+
+poses:
+  # ========================================
+  # Standing (기본 서있는 포즈)
+  # ========================================
+  # default: standing/default.png
+  # smile: standing/smile.png
+  # laugh: standing/laugh.png
+  # angry: standing/angry.png
+  # sad: standing/sad.png
+  # shy: standing/shy.png
+  # embarrassed: standing/embarrassed.png
+  # surprised: standing/surprised.png
+  # confused: standing/confused.png
+  # bored: standing/bored.png
+  # confident: standing/confident.png
+  # disgust: standing/disgust.png
+
+  # ========================================
+  # Combat (전투 포즈)
+  # ========================================
+  # attack: combat/attack.png
+  # defense: combat/defense.png
+  # hit: combat/hit.png
+  # cast: combat/cast.png
+  # victory: combat/victory.png
+  # defeat: combat/defeat.png
+
+  # ========================================
+  # Sitting (앉은 포즈)
+  # ========================================
+  # sitting_default: sitting/default.png
+  # sitting_reading: sitting/reading.png
+
+# 참고: 주석 처리된 항목은 실제 이미지 파일이 추가된 후 주석 해제
+# 이미지가 없으면 DWPose 런타임 추출이 사용됨 (extraction_enabled=True 시)

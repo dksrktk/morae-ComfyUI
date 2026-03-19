@@ -36,20 +36,23 @@ character:
   append_negative_tags: true    # Append character negative tags
 
 controlnet:
-  enabled: false               # Set to true + provide pose_library_path
-  model_name: "control_v11p_sd15_openpose.safetensors"
+  enabled: false               # Set to true to enable ControlNet pose control
+  # Illustrious XL 전용 ControlNet (SD 1.5 모델 사용 금지!)
+  # https://civitai.com/models/1359846/illustrious-xl-controlnet-openpose
+  model_name: "illustrious-xl-controlnet-openpose.safetensors"
 
-  # Pose library directory (subdirs = categories)
-  # pose_library_path: "./input/poses"
-  # pose_category: "pov"       # Filter by category
+  # Pose library (하이브리드: 라이브러리 → 런타임 추출)
+  library_path: "morae_pipeline/presets/controlnet"
+  extraction_enabled: true     # DWPose로 레퍼런스에서 포즈 추출 허용
 
-  # Strength range (randomized per image to prevent identical outputs)
-  strength_default: 0.7
+  # Strength settings
+  strength: 0.7
   strength_min: 0.5
   strength_max: 0.85
 
-  # Ending step: guides early denoising only (allows detail variation)
-  end_percent_default: 0.4
+  # Start/End percent (언제부터 언제까지 ControlNet 적용)
+  start_percent: 0.0
+  end_percent: 0.4
   end_percent_min: 0.3
   end_percent_max: 0.5
 

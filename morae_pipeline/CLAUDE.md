@@ -134,6 +134,15 @@ ipadapter:
   clip_vision_model: "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
   weight: 0.7
 
+controlnet:
+  enabled: false  # 포즈 제어 활성화
+  # Illustrious XL 전용 (일반 SDXL ControlNet 사용 금지 - 색상 왜곡)
+  model_name: "illustrious-xl-controlnet-openpose.safetensors"
+  library_path: "morae_pipeline/presets/controlnet"
+  extraction_enabled: true  # DWPose 런타임 추출
+  strength: 0.7
+  end_percent: 0.4
+
 curation:
   enabled: true
   grade_a_min: 0.8
@@ -165,13 +174,21 @@ output/morae/{session}/
 
 | 모델 | 경로 | 용도 |
 |------|------|------|
-| Checkpoint | models/checkpoints/ | 기본 모델 |
+| Checkpoint | models/checkpoints/ | 기본 모델 (waiIllustriousSDXL) |
 | LoRA | models/loras/ | 그림체/캐릭터 |
 | IP-Adapter | models/ipadapter/ | 레퍼런스 스타일 |
 | CLIP Vision | models/clip_vision/ | IP-Adapter용 |
+| ControlNet | models/controlnet/ | 포즈 제어 (IXIL 전용 필수!) |
 | SAM2 | models/sam2/ | 검열 마스킹 |
 | YOLO | models/yolo/ | 검열 검출 |
 | Aesthetic | models/aesthetic/ | 큐레이션 점수 |
+
+### ControlNet 모델 (중요)
+
+Illustrious XL 체크포인트 사용 시 반드시 **IXIL 전용 ControlNet** 사용:
+- 권장: `illustrious-xl-controlnet-openpose.safetensors`
+- 출처: https://civitai.com/models/1359846/illustrious-xl-controlnet-openpose
+- ⚠️ 일반 SDXL/SD1.5 ControlNet 사용 시 색상 왜곡 발생
 
 ## Git 커밋 규칙
 

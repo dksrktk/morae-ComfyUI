@@ -58,26 +58,40 @@ class PoseExtractor:
         self._detector = None
 
     def _load_detector(self):
-        """DWPose 감지기 로드 (지연 로딩)."""
+        """포즈 감지기 로드 (지연 로딩).
+
+        우선순위:
+        1. OpenPose (의존성 적음, 안정적)
+        2. DWPose (mmcv 필요, 더 정확)
+        """
         if self._detector is not None:
             return
 
+        # 1차: OpenPose 시도 (권장 - 의존성 적음)
+        try:
+            from controlnet_aux import OpenposeDetector
+            self._detector = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
+            self._detector_type = "openpose"
+            logger.info("OpenPose detector loaded")
+            return
+        except Exception as e:
+            logger.debug(f"OpenPose failed: {e}")
+
+        # 2차: DWPose 시도 (mmcv/mmpose/mmdet 필요)
         try:
             from controlnet_aux import DWposeDetector
             self._detector = DWposeDetector()
+            self._detector_type = "dwpose"
             logger.info("DWPose detector loaded")
+            return
         except ImportError:
-            # ComfyUI 환경에서는 다른 방식으로 로드
-            try:
-                from controlnet_aux.dwpose import DWposeDetector
-                self._detector = DWposeDetector()
-                logger.info("DWPose detector loaded (alternative)")
-            except ImportError:
-                raise ImportError(
-                    "controlnet_aux 패키지가 필요합니다.\n"
-                    "설치: pip install controlnet_aux\n"
-                    "또는 ComfyUI custom_nodes/comfyui_controlnet_aux 사용"
-                )
+            pass
+
+        raise ImportError(
+            "controlnet_aux 패키지가 필요합니다.\n"
+            "설치: pip install controlnet_aux\n"
+            "또는 ComfyUI custom_nodes/comfyui_controlnet_aux 사용"
+        )
 
     def extract(
         self,

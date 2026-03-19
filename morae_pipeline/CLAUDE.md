@@ -172,3 +172,8 @@ output/morae/{session}/
 | SAM2 | models/sam2/ | 검열 마스킹 |
 | YOLO | models/yolo/ | 검열 검출 |
 | Aesthetic | models/aesthetic/ | 큐레이션 점수 |
+
+## Git 커밋 규칙
+
+- 커밋 시 Co-Authored-By 라인 추가하지 않음
+- 커밋 메시지는 conventional commits 형식 (feat:, fix:, docs: 등)

@@ -1,0 +1,12 @@
+id: service
+name: "서비스직 포즈"
+triggers: ["maid", "메이드", "waitress", "servant", "butler", "카페", "cafe", "서비스"]
+poses:
+  - id: serving
+    prompt_tags: "holding tray, serving pose, elegant stance, polite"
+  - id: bowing
+    prompt_tags: "bowing, respectful, greeting pose, formal"
+  - id: presenting
+    prompt_tags: "presenting item, showing, welcoming gesture, open palm"
+  - id: cleaning
+    prompt_tags: "cleaning, dusting, working, focused"

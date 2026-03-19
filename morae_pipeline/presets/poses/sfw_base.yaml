@@ -1,0 +1,28 @@
+id: sfw_base
+name: "기본 표정 12종"
+required: true
+poses:
+  - id: default
+    prompt_tags: "neutral expression, looking at viewer, standing"
+  - id: smile
+    prompt_tags: "gentle smile, happy, looking at viewer"
+  - id: laugh
+    prompt_tags: "laughing, open mouth, closed eyes, very happy"
+  - id: angry
+    prompt_tags: "angry, frown, glaring, clenched teeth"
+  - id: disgust
+    prompt_tags: "disgusted expression, frown, looking away"
+  - id: sad
+    prompt_tags: "sad, teary eyes, frown, downcast eyes"
+  - id: shy
+    prompt_tags: "shy, blushing, looking away, fidgeting"
+  - id: embarrassed
+    prompt_tags: "embarrassed, heavy blush, hands on cheeks, flustered"
+  - id: surprised
+    prompt_tags: "surprised, wide eyes, open mouth, shocked"
+  - id: confused
+    prompt_tags: "confused, tilted head, raised eyebrow, questioning"
+  - id: bored
+    prompt_tags: "bored, half-lidded eyes, yawning, disinterested"
+  - id: confident
+    prompt_tags: "confident, smug smile, crossed arms, proud"

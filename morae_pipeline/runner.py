@@ -12,7 +12,10 @@ from .config import PipelineConfig
 from .censorship.pipeline import CensorshipPipeline
 from .character.profile import CharacterLibrary, CharacterProfile
 from .curation.pipeline import CurationPipeline
+from .outfit import OutfitList
 from .pose_list import PoseList, PoseGenerator
+from .project import Project
+from .project_generator import ProjectGenerator
 from .prompt_generator import PromptGenerator
 from .queue_manager import QueueManager, Job, JobStatus
 from .storage import OutputManager
@@ -462,3 +465,243 @@ class PipelineRunner:
 
         logger.info(f"=== Character Batch Complete: {session_dir} ===")
         return session_dir
+
+    async def project_init(
+        self,
+        prompt: str,
+        name: str,
+        nsfw: bool = False,
+    ) -> Project:
+        """프로젝트 초기화: 자연어 → 프로젝트 구조 생성.
+
+        Args:
+            prompt: 프로젝트 설명 (예: "메이드 카페 판타지 게임, 마법사 메이드, 전사 메이드")
+            name: 프로젝트 이름
+            nsfw: NSFW 포즈 포함 여부
+
+        Returns:
+            생성된 Project
+        """
+        gen_config = self.config.generation
+
+        if not gen_config.deepseek_api_key:
+            raise ValueError("deepseek_api_key가 설정되지 않았습니다")
+
+        logger.info(f"=== Project Init: {name} ===")
+        logger.info(f"Prompt: {prompt}")
+        logger.info(f"NSFW: {nsfw}")
+
+        generator = ProjectGenerator(gen_config.deepseek_api_key)
+        project = generator.generate(prompt, name, nsfw)
+        project.save()
+
+        logger.info(f"=== Project Created: {project.path} ===")
+        logger.info(project.summary())
+
+        return project
+
+    async def project_run(
+        self,
+        project_path: Path | str,
+        images_per_combo: int = 1,
+        characters: Optional[list[str]] = None,
+        poses: Optional[list[str]] = None,
+        outfits: Optional[list[str]] = None,
+        curate: bool = True,
+        censor: bool = True,
+        seed_start: int = 1,
+        generate_references: bool = True,
+    ) -> Path:
+        """프로젝트 실행: 캐릭터 × 복장 × 포즈 매트릭스 생성.
+
+        Args:
+            project_path: 프로젝트 경로 또는 이름
+            images_per_combo: 조합당 이미지 개수
+            characters: 특정 캐릭터만 필터 (None=전체)
+            poses: 특정 포즈만 필터 (None=전체)
+            outfits: 특정 복장만 필터 (None=전체)
+            curate: 큐레이션 실행 여부
+            censor: 검열 실행 여부
+            seed_start: 시작 시드
+            generate_references: 레퍼런스 이미지 자동 생성 여부
+
+        Returns:
+            출력 디렉토리 경로
+        """
+        project = Project.load(project_path)
+        gen_config = self.config.generation
+
+        logger.info(f"=== Project Run: {project.name} ===")
+        logger.info(project.summary())
+
+        # 조합 계산
+        combos = project.get_combinations(characters, outfits, poses)
+        total_images = len(combos) * images_per_combo
+
+        logger.info(f"Combinations: {len(combos)}")
+        logger.info(f"Images per combo: {images_per_combo}")
+        logger.info(f"Total images: {total_images}")
+
+        # 출력 디렉토리
+        output_dir = Path(self.config.output_dir) / f"project_{project.name}"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # 워크플로우 빌더
+        builder = WorkflowBuilder(gen_config, self.config.ipadapter)
+
+        # 캐릭터별 레퍼런스 이미지 업로드/생성
+        ref_images: dict[str, str] = {}
+
+        async with ComfyUIClient(self.config.comfyui) as client:
+            for char_name, char_profile in project.characters.items():
+                if characters and char_name not in characters:
+                    continue
+
+                # 레퍼런스 이미지 처리
+                if char_profile.primary_reference:
+                    src_path = Path(char_profile.primary_reference)
+                    if src_path.exists():
+                        dest_name = f"{char_name}_ref{src_path.suffix}"
+                        import requests
+                        with open(src_path, "rb") as f:
+                            files = {"image": (dest_name, f, "image/png")}
+                            data = {"overwrite": "true"}
+                            resp = requests.post(
+                                f"{self.config.comfyui.http_url}/upload/image",
+                                files=files, data=data, timeout=30
+                            )
+                            if resp.status_code == 200:
+                                ref_images[char_name] = dest_name
+                                logger.info(f"[{char_name}] Reference uploaded: {dest_name}")
+                elif generate_references:
+                    # 레퍼런스 이미지 자동 생성 (default 포즈로)
+                    logger.info(f"[{char_name}] Generating reference image...")
+                    char_tags = ", ".join(char_profile.tags) if char_profile.tags else "1girl"
+                    default_pose = project.poses.get("default")
+                    pose_tags = default_pose.prompt_tags if default_pose else "standing, looking at viewer"
+
+                    # 첫 번째 복장 사용
+                    first_outfit = project.outfits.outfits[0] if project.outfits.outfits else None
+                    outfit_tags = first_outfit.prompt_tags if first_outfit else ""
+
+                    positive = f"masterpiece, best quality, {char_tags}, {outfit_tags}, {pose_tags}"
+                    negative = gen_config.default_negative or "low quality, worst quality"
+
+                    workflow, _ = builder.build(
+                        positive_prompt=positive,
+                        negative_prompt=negative,
+                        seed=seed_start,
+                        filename_prefix=f"{char_name}_reference",
+                    )
+
+                    try:
+                        ref_dir = project.path / "characters" / char_name
+                        ref_dir.mkdir(parents=True, exist_ok=True)
+                        downloaded = await client.generate_and_download(
+                            workflow, ref_dir, timeout=self.config.queue.timeout_seconds
+                        )
+                        if downloaded:
+                            ref_path = downloaded[0]
+                            # 업로드
+                            dest_name = f"{char_name}_ref.png"
+                            with open(ref_path, "rb") as f:
+                                files = {"image": (dest_name, f, "image/png")}
+                                data = {"overwrite": "true"}
+                                resp = requests.post(
+                                    f"{self.config.comfyui.http_url}/upload/image",
+                                    files=files, data=data, timeout=30
+                                )
+                                if resp.status_code == 200:
+                                    ref_images[char_name] = dest_name
+                                    logger.info(f"[{char_name}] Reference generated and uploaded")
+                    except Exception as e:
+                        logger.warning(f"[{char_name}] Reference generation failed: {e}")
+
+            # 메인 생성 루프
+            start = time.time()
+            seed = seed_start + 1000  # 레퍼런스 생성과 충돌 방지
+            generated_count = 0
+
+            for char_name, outfit_id, pose_id in combos:
+                char_profile = project.characters[char_name]
+                outfit = project.outfits.get(outfit_id)
+                pose = project.poses.get(pose_id)
+
+                if not outfit or not pose:
+                    continue
+
+                # 캐릭터별 출력 디렉토리
+                char_output_dir = output_dir / char_name / outfit_id
+                char_output_dir.mkdir(parents=True, exist_ok=True)
+
+                # 프롬프트 조합
+                char_tags = ", ".join(char_profile.tags) if char_profile.tags else "1girl"
+                positive = f"masterpiece, best quality, {char_tags}, {outfit.prompt_tags}, {pose.prompt_tags}"
+
+                char_neg = ", ".join(char_profile.negative_tags) if char_profile.negative_tags else ""
+                outfit_neg = outfit.negative_tags or ""
+                negative = gen_config.default_negative or "low quality, worst quality"
+                if char_neg:
+                    negative = f"{negative}, {char_neg}"
+                if outfit_neg:
+                    negative = f"{negative}, {outfit_neg}"
+
+                # 레퍼런스 이미지
+                ref_image = ref_images.get(char_name)
+
+                for img_idx in range(images_per_combo):
+                    filename_prefix = f"{pose_id}_{img_idx + 1:03d}"
+
+                    workflow, used_seed = builder.build(
+                        positive_prompt=positive,
+                        negative_prompt=negative,
+                        seed=seed,
+                        filename_prefix=filename_prefix,
+                        reference_image=ref_image,
+                    )
+                    seed += 1
+
+                    logger.info(f"[{char_name}/{outfit_id}/{pose_id}] #{img_idx + 1} (seed={used_seed})")
+
+                    try:
+                        downloaded = await client.generate_and_download(
+                            workflow,
+                            char_output_dir,
+                            timeout=self.config.queue.timeout_seconds,
+                        )
+                        if downloaded:
+                            generated_count += 1
+                            logger.debug(f"  -> {downloaded[0].name}")
+                    except Exception as e:
+                        logger.error(f"  -> Failed: {e}")
+
+        gen_time = time.time() - start
+        logger.info(f"Generation complete: {generated_count}/{total_images} images in {gen_time / 60:.1f}min")
+
+        # 큐레이션 (캐릭터별)
+        if curate and self.config.curation.enabled:
+            for char_name in project.characters.keys():
+                if characters and char_name not in characters:
+                    continue
+                char_dir = output_dir / char_name
+                if char_dir.exists():
+                    # 각 outfit 폴더의 이미지를 raw로 모으기
+                    raw_dir = char_dir / "raw"
+                    raw_dir.mkdir(parents=True, exist_ok=True)
+                    for outfit_dir in char_dir.iterdir():
+                        if outfit_dir.is_dir() and outfit_dir.name != "raw" and outfit_dir.name != "graded":
+                            for img in outfit_dir.glob("*.png"):
+                                # 파일명에 outfit 포함
+                                new_name = f"{outfit_dir.name}_{img.name}"
+                                img.rename(raw_dir / new_name)
+                    await self.run_curation(char_dir)
+
+        # 검열
+        if censor and self.config.censorship.enabled:
+            for char_name in project.characters.keys():
+                if characters and char_name not in characters:
+                    continue
+                self.run_censorship(output_dir / char_name)
+
+        logger.info(f"=== Project Run Complete: {output_dir} ===")
+        return output_dir

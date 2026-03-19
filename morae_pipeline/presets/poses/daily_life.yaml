@@ -1,0 +1,14 @@
+id: daily_life
+name: "일상 포즈"
+triggers: ["일상", "daily", "life", "slice of life", "학교", "school"]
+poses:
+  - id: sitting
+    prompt_tags: "sitting, relaxed, casual pose, comfortable"
+  - id: walking
+    prompt_tags: "walking, mid-stride, casual, moving"
+  - id: eating
+    prompt_tags: "eating, holding food, happy, enjoying meal"
+  - id: sleeping
+    prompt_tags: "sleeping, eyes closed, peaceful, lying down"
+  - id: reading
+    prompt_tags: "reading book, focused, studious, holding book"

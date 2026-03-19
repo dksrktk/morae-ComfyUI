@@ -1,0 +1,10 @@
+id: maid
+name: "메이드 복장"
+triggers: ["maid", "메이드", "servant", "하녀", "メイド"]
+outfits:
+  - id: classic_maid
+    prompt_tags: "maid outfit, maid dress, apron, maid headdress, frills"
+  - id: french_maid
+    prompt_tags: "french maid, short skirt, lace trim, elegant maid"
+  - id: butler_style
+    prompt_tags: "butler uniform, formal vest, bow tie, professional servant"

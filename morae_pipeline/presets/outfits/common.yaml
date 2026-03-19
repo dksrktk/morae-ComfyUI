@@ -1,0 +1,12 @@
+id: common
+name: "공통 복장"
+required: true
+outfits:
+  - id: casual
+    prompt_tags: "casual clothes, t-shirt, jeans, modern clothing"
+  - id: formal
+    prompt_tags: "formal dress, elegant, business attire, professional"
+  - id: sleepwear
+    prompt_tags: "pajamas, sleepwear, nightgown, comfortable clothes"
+  - id: swimsuit
+    prompt_tags: "swimsuit, bikini, beach attire"

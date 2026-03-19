@@ -14,15 +14,24 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+# 프리셋 디렉토리 경로
+PRESETS_DIR = Path(__file__).parent / "presets" / "poses"
+
+
 @dataclass
 class PoseListEntry:
     """단일 포즈 항목."""
     id: str
-    description: str
+    description: str = ""  # 한국어 설명 (LLM 생성용)
+    prompt_tags: str = ""  # danbooru 태그 (직접 사용)
     controlnet_image: Optional[str] = None  # ControlNet 포즈 이미지 (옵션)
 
     def to_dict(self) -> dict:
-        d = {"id": self.id, "description": self.description}
+        d = {"id": self.id}
+        if self.description:
+            d["description"] = self.description
+        if self.prompt_tags:
+            d["prompt_tags"] = self.prompt_tags
         if self.controlnet_image:
             d["controlnet"] = self.controlnet_image
         return d
@@ -31,7 +40,8 @@ class PoseListEntry:
     def from_dict(cls, d: dict) -> PoseListEntry:
         return cls(
             id=d["id"],
-            description=d["description"],
+            description=d.get("description", ""),
+            prompt_tags=d.get("prompt_tags", ""),
             controlnet_image=d.get("controlnet"),
         )
 
@@ -41,18 +51,27 @@ class PoseList:
     """포즈 목록 (YAML 파일 기반)."""
     name: str = ""
     poses: list[PoseListEntry] = field(default_factory=list)
+    required: bool = False
+    triggers: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "name": self.name,
             "poses": [p.to_dict() for p in self.poses],
         }
+        if self.required:
+            d["required"] = self.required
+        if self.triggers:
+            d["triggers"] = self.triggers
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> PoseList:
         return cls(
-            name=d.get("name", ""),
+            name=d.get("name", d.get("id", "")),
             poses=[PoseListEntry.from_dict(p) for p in d.get("poses", [])],
+            required=d.get("required", False),
+            triggers=d.get("triggers", []),
         )
 
     @classmethod
@@ -72,12 +91,54 @@ class PoseList:
         logger.info(f"PoseList loaded: {path} ({len(pose_list.poses)} poses)")
         return pose_list
 
+    @classmethod
+    def load_preset(cls, preset_id: str) -> PoseList:
+        """프리셋에서 포즈 목록 로드.
+
+        Args:
+            preset_id: 프리셋 ID (예: "sfw_base", "combat")
+
+        Returns:
+            PoseList
+        """
+        preset_path = PRESETS_DIR / f"{preset_id}.yaml"
+        if not preset_path.exists():
+            raise FileNotFoundError(f"Pose preset not found: {preset_id}")
+        return cls.load(preset_path)
+
+    @classmethod
+    def list_presets(cls) -> list[str]:
+        """사용 가능한 프리셋 목록 반환."""
+        if not PRESETS_DIR.exists():
+            return []
+        return [p.stem for p in PRESETS_DIR.glob("*.yaml")]
+
     def save(self, path: Path) -> None:
         """YAML 파일로 저장."""
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             yaml.dump(self.to_dict(), f, allow_unicode=True, default_flow_style=False)
         logger.info(f"PoseList saved: {path}")
+
+    def extend(self, other: PoseList) -> None:
+        """다른 PoseList의 포즈들을 추가 (중복 ID 제외)."""
+        existing_ids = {p.id for p in self.poses}
+        for pose in other.poses:
+            if pose.id not in existing_ids:
+                self.poses.append(pose)
+                existing_ids.add(pose.id)
+
+    def get(self, pose_id: str) -> Optional[PoseListEntry]:
+        """ID로 포즈 검색."""
+        for pose in self.poses:
+            if pose.id == pose_id:
+                return pose
+        return None
+
+    def filter(self, pose_ids: list[str]) -> PoseList:
+        """특정 ID의 포즈만 필터링."""
+        filtered = [p for p in self.poses if p.id in pose_ids]
+        return PoseList(name=self.name, poses=filtered)
 
     def __len__(self) -> int:
         return len(self.poses)
@@ -189,6 +250,7 @@ class PoseGenerator:
                     PoseListEntry(
                         id=p.get("id", f"pose_{i:02d}"),
                         description=p.get("description", ""),
+                        prompt_tags=p.get("prompt_tags", ""),
                     )
                     for i, p in enumerate(data["poses"])
                 ]

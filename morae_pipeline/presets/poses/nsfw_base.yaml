@@ -1,0 +1,14 @@
+id: nsfw_base
+name: "성인용 포즈"
+triggers: ["nsfw", "성인", "19금", "adult"]
+poses:
+  - id: aroused
+    prompt_tags: "aroused, blushing, heavy breathing, excited"
+  - id: seductive
+    prompt_tags: "seductive pose, bedroom eyes, alluring, sensual"
+  - id: undressing
+    prompt_tags: "undressing, removing clothes, embarrassed, shy"
+  - id: nude_shy
+    prompt_tags: "nude, covering body, embarrassed, shy, blushing"
+  - id: nude_confident
+    prompt_tags: "nude, confident pose, unashamed, proud"

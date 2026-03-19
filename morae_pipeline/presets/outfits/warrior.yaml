@@ -1,0 +1,10 @@
+id: warrior
+name: "전사 복장"
+triggers: ["warrior", "전사", "knight", "fighter", "soldier", "騎士"]
+outfits:
+  - id: armor
+    prompt_tags: "armor, plate armor, knight armor, metal armor, gauntlets"
+  - id: light_armor
+    prompt_tags: "light armor, leather armor, flexible, combat ready"
+  - id: training
+    prompt_tags: "training clothes, workout outfit, athletic wear, bandages"

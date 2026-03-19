@@ -1,0 +1,10 @@
+id: mage
+name: "마법사 복장"
+triggers: ["mage", "마법사", "wizard", "sorceress", "witch", "魔法師"]
+outfits:
+  - id: battle_robe
+    prompt_tags: "mage robe, hooded cloak, mystical, flowing robes"
+  - id: academy
+    prompt_tags: "magic academy uniform, school uniform, cape, wizard hat"
+  - id: ritual
+    prompt_tags: "ritual robes, ceremonial dress, ornate, mystical symbols"

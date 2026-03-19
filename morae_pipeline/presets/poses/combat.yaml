@@ -1,0 +1,16 @@
+id: combat
+name: "전투 포즈"
+triggers: ["warrior", "mage", "knight", "archer", "fighter", "전투", "무협", "판타지", "헌터", "hunter"]
+poses:
+  - id: attack
+    prompt_tags: "attacking pose, dynamic pose, action, battle stance"
+  - id: defense
+    prompt_tags: "defensive stance, guarding, blocking pose, alert"
+  - id: hit
+    prompt_tags: "being hit, pain expression, recoil, damaged"
+  - id: cast
+    prompt_tags: "casting magic, magic circle, glowing hands, spell casting"
+  - id: victory
+    prompt_tags: "victory pose, triumphant, celebrating, fist pump"
+  - id: defeat
+    prompt_tags: "defeated, kneeling, exhausted, injured"

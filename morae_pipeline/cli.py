@@ -197,6 +197,99 @@ def cmd_status(args) -> None:
         print(f"  {name}: [{status}] {completed}/{total} completed, {failed} failed{grade_info}")
 
 
+def cmd_project_init(args) -> None:
+    """프로젝트 초기화."""
+    config = _load_config(args)
+
+    # CLI에서 API 키 오버라이드
+    if args.api_key:
+        config.generation.deepseek_api_key = args.api_key
+
+    runner = PipelineRunner(config)
+    project = asyncio.run(
+        runner.project_init(
+            prompt=args.prompt,
+            name=args.name,
+            nsfw=args.nsfw,
+        )
+    )
+
+    print(f"\n프로젝트 생성 완료: {project.path}")
+    print(project.summary())
+
+
+def cmd_project_run(args) -> None:
+    """프로젝트 실행."""
+    config = _load_config(args)
+
+    # 필터 파싱
+    characters = [c.strip() for c in args.characters.split(",")] if args.characters else None
+    poses = [p.strip() for p in args.poses.split(",")] if args.poses else None
+    outfits = [o.strip() for o in args.outfits.split(",")] if args.outfits else None
+
+    runner = PipelineRunner(config)
+    output_dir = asyncio.run(
+        runner.project_run(
+            project_path=args.project,
+            images_per_combo=args.images_per_combo,
+            characters=characters,
+            poses=poses,
+            outfits=outfits,
+            curate=not args.no_curate,
+            censor=not args.no_censor,
+            seed_start=args.seed_start,
+            generate_references=not args.no_auto_reference,
+        )
+    )
+
+    print(f"\n프로젝트 실행 완료: {output_dir}")
+
+
+def cmd_project_status(args) -> None:
+    """프로젝트 상태 확인."""
+    from .project import Project, DEFAULT_PROJECTS_DIR
+
+    if args.project:
+        # 특정 프로젝트 상세 정보
+        try:
+            project = Project.load(args.project)
+            print(project.summary())
+            print(f"\nPath: {project.path}")
+            print(f"\nCharacters:")
+            for name in project.characters:
+                print(f"  - {name}")
+            print(f"\nPoses ({len(project.poses)}):")
+            for pose in list(project.poses)[:10]:
+                print(f"  - {pose.id}")
+            if len(project.poses) > 10:
+                print(f"  ... and {len(project.poses) - 10} more")
+            print(f"\nOutfits ({len(project.outfits)}):")
+            for outfit in project.outfits:
+                print(f"  - {outfit.id}")
+        except FileNotFoundError as e:
+            print(f"프로젝트를 찾을 수 없음: {e}")
+            sys.exit(1)
+    else:
+        # 전체 프로젝트 목록
+        if not DEFAULT_PROJECTS_DIR.exists():
+            print("프로젝트가 없습니다.")
+            return
+
+        projects = [d for d in DEFAULT_PROJECTS_DIR.iterdir() if d.is_dir()]
+        if not projects:
+            print("프로젝트가 없습니다.")
+            return
+
+        print("프로젝트 목록:")
+        for p_dir in sorted(projects):
+            try:
+                project = Project.load(p_dir)
+                combos = len(project.get_combinations())
+                print(f"  {project.name}: {len(project.characters)}캐릭터 × {len(project.outfits)}복장 × {len(project.poses)}포즈 = {combos}조합")
+            except Exception:
+                print(f"  {p_dir.name}: (로드 실패)")
+
+
 def _load_config(args) -> PipelineConfig:
     if hasattr(args, "config") and args.config:
         return PipelineConfig.from_yaml(Path(args.config))
@@ -270,6 +363,32 @@ def main() -> None:
     cb.add_argument("--no-curate", action="store_true", help="큐레이션 건너뛰기")
     cb.add_argument("--no-censor", action="store_true", help="검열 건너뛰기")
     cb.set_defaults(func=cmd_character_batch)
+
+    # project-init
+    pi = sub.add_parser("project-init", help="프로젝트 초기화 (자연어 → 캐릭터/포즈/복장 구조 자동 생성)")
+    pi.add_argument("prompt", help="프로젝트 설명 (예: '메이드 카페 판타지 게임, 마법사 메이드, 전사 메이드')")
+    pi.add_argument("--name", "-n", required=True, help="프로젝트 이름")
+    pi.add_argument("--api-key", help="DeepSeek API 키 (또는 config에 설정)")
+    pi.add_argument("--nsfw", action="store_true", help="NSFW 포즈 포함")
+    pi.set_defaults(func=cmd_project_init)
+
+    # project-run
+    pr = sub.add_parser("project-run", help="프로젝트 실행 (캐릭터 × 복장 × 포즈 매트릭스 생성)")
+    pr.add_argument("project", help="프로젝트 이름 또는 경로")
+    pr.add_argument("--images-per-combo", "-n", type=int, default=1, help="조합당 이미지 개수 (기본: 1)")
+    pr.add_argument("--characters", help="특정 캐릭터만 (쉼표 구분)")
+    pr.add_argument("--poses", help="특정 포즈만 (쉼표 구분)")
+    pr.add_argument("--outfits", help="특정 복장만 (쉼표 구분)")
+    pr.add_argument("--seed-start", type=int, default=1, help="시작 시드 (기본: 1)")
+    pr.add_argument("--no-curate", action="store_true", help="큐레이션 건너뛰기")
+    pr.add_argument("--no-censor", action="store_true", help="검열 건너뛰기")
+    pr.add_argument("--no-auto-reference", action="store_true", help="레퍼런스 이미지 자동 생성 안함")
+    pr.set_defaults(func=cmd_project_run)
+
+    # project-status
+    ps = sub.add_parser("project-status", help="프로젝트 상태 확인")
+    ps.add_argument("project", nargs="?", help="프로젝트 이름 (생략 시 전체 목록)")
+    ps.set_defaults(func=cmd_project_status)
 
     args = parser.parse_args()
     setup_logging(args.verbose)

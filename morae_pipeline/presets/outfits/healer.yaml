@@ -1,0 +1,10 @@
+id: healer
+name: "힐러 복장"
+triggers: ["healer", "힐러", "priest", "priestess", "cleric", "nurse", "간호사"]
+outfits:
+  - id: priest_robe
+    prompt_tags: "priest robes, holy vestments, white robes, religious garb"
+  - id: nurse
+    prompt_tags: "nurse uniform, medical outfit, white dress, nurse cap"
+  - id: nature_healer
+    prompt_tags: "druid robes, nature themed, leaf patterns, earthy colors"

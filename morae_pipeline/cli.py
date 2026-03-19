@@ -290,6 +290,45 @@ def cmd_project_status(args) -> None:
                 print(f"  {p_dir.name}: (로드 실패)")
 
 
+def cmd_pose_extract(args) -> None:
+    """이미지에서 OpenPose 포즈 추출."""
+    from .pose_extractor import PoseExtractor, ComfyUIPoseExtractor, generate_manifest, DEFAULT_OUTPUT_DIR
+
+    input_path = Path(args.input)
+    output_path = Path(args.output) if args.output else DEFAULT_OUTPUT_DIR
+
+    # manifest 생성만
+    if args.generate_manifest:
+        generate_manifest(output_path)
+        return
+
+    if args.use_comfyui:
+        # ComfyUI 서버 사용
+        config = _load_config(args)
+        extractor = ComfyUIPoseExtractor(
+            host=config.comfyui.host,
+            port=config.comfyui.port,
+            resolution=args.resolution,
+        )
+        if args.batch or input_path.is_dir():
+            asyncio.run(extractor.extract_batch(input_path, output_path))
+        else:
+            asyncio.run(extractor.extract(input_path, output_path.stem if output_path.suffix else "pose"))
+    else:
+        # 직접 추출 (controlnet_aux 필요)
+        extractor = PoseExtractor(resolution=args.resolution)
+
+        if args.batch or input_path.is_dir():
+            results = extractor.extract_batch(input_path, output_path)
+            print(f"Extracted {len(results)} poses")
+            # manifest 자동 생성
+            if results:
+                generate_manifest(output_path)
+        else:
+            extractor.extract(input_path, output_path)
+            print(f"Pose saved: {output_path}")
+
+
 def _load_config(args) -> PipelineConfig:
     if hasattr(args, "config") and args.config:
         return PipelineConfig.from_yaml(Path(args.config))
@@ -389,6 +428,16 @@ def main() -> None:
     ps = sub.add_parser("project-status", help="프로젝트 상태 확인")
     ps.add_argument("project", nargs="?", help="프로젝트 이름 (생략 시 전체 목록)")
     ps.set_defaults(func=cmd_project_status)
+
+    # pose-extract
+    pe = sub.add_parser("pose-extract", help="이미지에서 OpenPose 스켈레톤 추출 (ControlNet용)")
+    pe.add_argument("input", help="입력 이미지 또는 디렉토리")
+    pe.add_argument("-o", "--output", help="출력 경로 (기본: presets/controlnet/)")
+    pe.add_argument("--batch", action="store_true", help="디렉토리 배치 처리")
+    pe.add_argument("--resolution", type=int, default=1024, help="출력 해상도 (기본: 1024)")
+    pe.add_argument("--use-comfyui", action="store_true", help="ComfyUI 서버로 추출 (더 안정적)")
+    pe.add_argument("--generate-manifest", action="store_true", help="manifest.yaml 생성만")
+    pe.set_defaults(func=cmd_pose_extract)
 
     args = parser.parse_args()
     setup_logging(args.verbose)

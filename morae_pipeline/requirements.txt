@@ -1,5 +1,32 @@
 # Morae Pipeline Dependencies
-# pip install -r morae_pipeline/requirements.txt
+# ============================
+#
+# 설치 방법 (Installation)
+# ========================
+#
+# 1. PyTorch (GPU 환경에 맞게 선택)
+#    CUDA 12.x:
+#      pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+#    CUDA 11.8:
+#      pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+#    CPU only:
+#      pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+#
+# 2. 기본 의존성
+#    pip install -r morae_pipeline/requirements.txt
+#
+# 3. SAM2 (검열용 - GitHub에서 설치)
+#    pip install git+https://github.com/facebookresearch/sam2.git
+#
+# 4. ComfyUI 커스텀 노드 (ControlNet DWPose 사용 시)
+#    cd custom_nodes
+#    git clone https://github.com/Fannovel16/comfyui_controlnet_aux
+#    pip install -r comfyui_controlnet_aux/requirements.txt
+#
+# 전체 설치 (한 번에):
+#    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+#    pip install -r morae_pipeline/requirements.txt
+#    pip install git+https://github.com/facebookresearch/sam2.git
 
 # ===== Core =====
 torch>=2.0.0
@@ -18,25 +45,42 @@ ultralytics>=8.0.0                    # YOLO
 dghs-imgutils[gpu]>=0.8.0             # imgutils (detect_censors, nudenet)
 
 # ===== Segmentation (Censorship) =====
-# SAM2 - install from GitHub
+# SAM2 - GitHub에서 설치 (위 설치 방법 참조)
 # pip install git+https://github.com/facebookresearch/sam2.git
 
 # ===== Curation =====
 open_clip_torch>=2.20.0               # CLIP for aesthetic scoring
-# Optional: transformers>=4.30.0      # Fallback CLIP if open_clip unavailable
+transformers>=4.30.0                  # Fallback CLIP
 
-# ===== Note =====
-# ComfyUI dependencies (torch, numpy, etc.) are usually already installed.
-# Only install the additional dependencies listed above.
+# ===== Face Similarity (Optional) =====
+# insightface>=0.7.3
+# onnxruntime-gpu>=1.15.0
+
+# ============================
+# 모델 다운로드 (Model Downloads)
+# ============================
 #
-# For SAM2:
-#   pip install git+https://github.com/facebookresearch/sam2.git
+# 1. Checkpoint (Illustrious XL)
+#    models/checkpoints/waiIllustriousSDXL_v160.safetensors
+#    https://civitai.com/models/795765/wai-illustrious-sdxl
 #
-# For imgutils with GPU:
-#   pip install dghs-imgutils[gpu]
+# 2. IP-Adapter (SDXL)
+#    models/ipadapter/ip-adapter_sdxl_vit-h.safetensors
+#    models/clip_vision/CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors
+#    https://huggingface.co/h94/IP-Adapter
 #
-# Download required models:
-#   - SAM2: models/sam2/sam2.1_hiera_large.pt
-#   - YOLO: models/yolo/yolov8_seg.pt (auto-downloaded)
-#   - Aesthetic: models/aesthetic/aesthetic_predictor_v2.pth
-#     (from https://github.com/christophschuhmann/improved-aesthetic-predictor)
+# 3. ControlNet (Illustrious XL 전용 - 중요!)
+#    models/controlnet/illustrious-xl-controlnet-openpose.safetensors
+#    https://civitai.com/models/1359846/illustrious-xl-controlnet-openpose
+#    ⚠️ 일반 SDXL/SD1.5 ControlNet 사용 금지 (색상 왜곡 발생)
+#
+# 4. SAM2 (검열용)
+#    models/sam2/sam2.1_hiera_large.pt
+#    https://github.com/facebookresearch/sam2#download-checkpoints
+#
+# 5. Aesthetic Predictor (큐레이션용)
+#    models/aesthetic/aesthetic_predictor_v2.pth
+#    https://github.com/christophschuhmann/improved-aesthetic-predictor
+#
+# 6. YOLO (자동 다운로드됨)
+#    models/yolo/yolov8_seg.pt

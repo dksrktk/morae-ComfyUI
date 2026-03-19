@@ -2,6 +2,46 @@
 
 ComfyUI 기반 이미지 생성 자동화 파이프라인.
 
+## 설치
+
+### 1. PyTorch (GPU 환경에 맞게)
+
+```bash
+# CUDA 12.x
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# CUDA 11.8
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+```
+
+### 2. 의존성 설치
+
+```bash
+pip install -r morae_pipeline/requirements.txt
+```
+
+### 3. SAM2 (검열 기능 사용 시)
+
+```bash
+pip install git+https://github.com/facebookresearch/sam2.git
+```
+
+### 4. ComfyUI 커스텀 노드 (ControlNet DWPose 사용 시)
+
+```bash
+cd custom_nodes
+git clone https://github.com/Fannovel16/comfyui_controlnet_aux
+pip install -r comfyui_controlnet_aux/requirements.txt
+```
+
+### 5. CLI 설치
+
+```bash
+pip install -e .
+# 또는
+export PYTHONPATH="${PYTHONPATH}:/path/to/ComfyUI"
+```
+
 ## 기능
 
 ### 1. 자연어 → 이미지 (autopilot)
@@ -180,8 +220,19 @@ output/morae/{session}/
 | CLIP Vision | models/clip_vision/ | IP-Adapter용 |
 | ControlNet | models/controlnet/ | 포즈 제어 (IXIL 전용 필수!) |
 | SAM2 | models/sam2/ | 검열 마스킹 |
-| YOLO | models/yolo/ | 검열 검출 |
+| YOLO | models/yolo/ | 검열 검출 (자동 다운로드) |
 | Aesthetic | models/aesthetic/ | 큐레이션 점수 |
+
+### 모델 다운로드 링크
+
+| 모델 | 파일명 | 다운로드 |
+|------|--------|----------|
+| Checkpoint | waiIllustriousSDXL_v160.safetensors | [Civitai](https://civitai.com/models/795765/wai-illustrious-sdxl) |
+| IP-Adapter | ip-adapter_sdxl_vit-h.safetensors | [HuggingFace](https://huggingface.co/h94/IP-Adapter) |
+| CLIP Vision | CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors | [HuggingFace](https://huggingface.co/h94/IP-Adapter) |
+| ControlNet | illustrious-xl-controlnet-openpose.safetensors | [Civitai](https://civitai.com/models/1359846/illustrious-xl-controlnet-openpose) |
+| SAM2 | sam2.1_hiera_large.pt | [GitHub](https://github.com/facebookresearch/sam2#download-checkpoints) |
+| Aesthetic | aesthetic_predictor_v2.pth | [GitHub](https://github.com/christophschuhmann/improved-aesthetic-predictor) |
 
 ### ControlNet 모델 (중요)
 
